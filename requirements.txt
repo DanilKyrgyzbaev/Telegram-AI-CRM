@@ -1,0 +1,13 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+aiogram>=3.13
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.29
+alembic>=1.13
+pydantic-settings>=2.4
+anthropic>=1.0
+tzdata>=2024.1
+sqladmin>=0.20
+itsdangerous>=2.1
+babel>=2.14
+segno>=1.6
