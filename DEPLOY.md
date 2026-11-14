@@ -56,7 +56,7 @@ nano .env
 | `TIMEZONE` | Ваш часовой пояс, например `Europe/Moscow` |
 | `POSTGRES_PASSWORD` | Длинный случайный пароль: `openssl rand -hex 16` |
 | `ADMIN_PASSWORD` | Пароль входа в админку: `openssl rand -base64 12` |
-| `ADMIN_API_KEY`, `SECRET_KEY` | `openssl rand -hex 32` (каждому свой) |
+| `ADMIN_API_KEY`, `SECRET_KEY` | `openssl rand -hex 32` (каждому свой). Без них или с `change-me` приложение не запустится |
 | `DOMAIN` | Домен админки (см. п. 6) или пусто |
 
 `DATABASE_URL` менять не нужно — в Docker адрес базы подставляется автоматически.

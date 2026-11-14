@@ -13,7 +13,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.config import get_settings
-from app.db import engine
+from app.db import SessionLocal, engine
 from app.models import Broadcast, Campaign, Client, Discount, Message, Product, Purchase
 from app.services.broadcasts import format_local, local_tz, utcnow
 from app.services.promo import promo_status
@@ -103,8 +103,12 @@ class ProductAdmin(ModelView, model=Product):
     @action(name="qr", label="Скачать QR для упаковки", add_in_list=False)
     async def download_qr(self, request: Request) -> Response:
         product_id = int(request.query_params["pks"].split(",")[0])
+        async with SessionLocal() as session:
+            product = await session.get(Product, product_id)
+        if product is None:
+            return Response("Товар не найден", status_code=404)
         return Response(
-            qr_png(await product_link(product_id)),
+            qr_png(await product_link(product.qr_token)),
             media_type="image/png",
             headers={"Content-Disposition": f'attachment; filename="qr-product-{product_id}.png"'},
         )

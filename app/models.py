@@ -1,10 +1,20 @@
-from datetime import datetime
+import secrets
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import BigInteger, ForeignKey, Numeric, String, Text, func, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+
+
+def new_qr_token() -> str:
+    """Случайный код для QR на упаковке: его нельзя подобрать перебором, в отличие от номера товара."""
+    return secrets.token_hex(6)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Client(Base):
@@ -36,6 +46,8 @@ class Product(Base):
     price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     # Артикул на Wildberries — по нему кнопка под рекомендацией ведёт на карточку товара
     wb_article: Mapped[int | None] = mapped_column(BigInteger)
+    # Код в ссылке QR на упаковке: t.me/<bot>?start=q<код>
+    qr_token: Mapped[str] = mapped_column(String(16), unique=True, default=new_qr_token)
     is_active: Mapped[bool] = mapped_column(default=True)
 
     def __str__(self) -> str:
@@ -114,10 +126,15 @@ class Broadcast(Base):
     text: Mapped[str] = mapped_column(Text)  # HTML-разметка Telegram
     # Если задано — только клиентам из этой рекламной кампании (Client.source)
     source: Mapped[str | None] = mapped_column(String(64))
-    status: Mapped[str] = mapped_column(String(16), default="pending")  # scheduled | pending | sending | done
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    # scheduled → pending → sending → done; interrupted — старая незавершённая рассылка, не возобновляется
     # Время отправки в UTC; None — отправить сразу
     scheduled_at: Mapped[datetime | None] = mapped_column(index=True)
     sent_count: Mapped[int] = mapped_column(default=0)
     failed_count: Mapped[int] = mapped_column(default=0)
+    # ID последнего клиента, которому уже отправляли: с него рассылка продолжится после перезапуска
+    last_client_id: Mapped[int] = mapped_column(default=0, server_default="0")
+    # «Пульс» рассылки (UTC): обновляется с каждым сообщением. Давно не обновлялся — отправка оборвалась
+    updated_at: Mapped[datetime] = mapped_column(default=_utcnow, server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     finished_at: Mapped[datetime | None]

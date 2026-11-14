@@ -37,9 +37,10 @@ async def update_product(product_id: int, data: ProductIn, session: AsyncSession
 @router.get("/{product_id}/qr.png", response_class=Response)
 async def product_qr(product_id: int, session: AsyncSession = Depends(get_session)):
     """QR-код для упаковки: ведёт в бота, который поблагодарит за покупку этого товара."""
-    if await session.get(Product, product_id) is None:
+    product = await session.get(Product, product_id)
+    if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
-    return Response(qr_png(await product_link(product_id)), media_type="image/png")
+    return Response(qr_png(await product_link(product.qr_token)), media_type="image/png")
 
 
 @router.delete("/{product_id}", status_code=204)

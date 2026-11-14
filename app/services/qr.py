@@ -9,15 +9,25 @@ from app.config import get_settings
 _bot_username: str | None = None
 
 
-def start_param(product_id: int) -> str:
-    """Параметр deep-link для QR на упаковке: t.me/<bot>?start=p15"""
-    return f"p{product_id}"
+_QR_PARAM = re.compile(r"q([0-9a-f]{12})")
+# Старый формат ссылок (p<номер товара>) легко подобрать перебором — он больше не засчитывается
+_LEGACY_QR_PARAM = re.compile(r"p\d+")
 
 
-def parse_start_param(args: str | None) -> int | None:
-    """ID товара из параметра /start или None, если это не QR товара."""
-    match = re.fullmatch(r"p(\d+)", args or "")
-    return int(match.group(1)) if match else None
+def start_param(qr_token: str) -> str:
+    """Параметр deep-link для QR на упаковке: t.me/<bot>?start=q3f9a1c07b2de"""
+    return f"q{qr_token}"
+
+
+def parse_start_param(args: str | None) -> str | None:
+    """Код товара (Product.qr_token) из параметра /start или None, если это не QR товара."""
+    match = _QR_PARAM.fullmatch(args or "")
+    return match.group(1) if match else None
+
+
+def is_qr_param(args: str | None) -> bool:
+    """Параметр /start похож на QR с упаковки (в том числе старого формата), а не на метку рекламы."""
+    return bool(_QR_PARAM.fullmatch(args or "") or _LEGACY_QR_PARAM.fullmatch(args or ""))
 
 
 async def bot_username() -> str:
@@ -31,8 +41,8 @@ async def bot_username() -> str:
     return _bot_username
 
 
-async def product_link(product_id: int) -> str:
-    return f"https://t.me/{await bot_username()}?start={start_param(product_id)}"
+async def product_link(qr_token: str) -> str:
+    return f"https://t.me/{await bot_username()}?start={start_param(qr_token)}"
 
 
 def qr_png(link: str) -> bytes:
