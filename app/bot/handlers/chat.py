@@ -7,6 +7,7 @@ from app.ai import manager
 from app.bot.keyboards import products_keyboard, subscribe_keyboard
 from app.config import get_settings
 from app.services.clients import get_or_create_client
+from app.services.limits import AI_LIMIT_TEXT, ai_limit_exceeded
 from app.services.subscription import refresh_subscription
 
 router = Router()
@@ -28,6 +29,11 @@ async def chat(message: Message, session: AsyncSession) -> None:
                 reply_markup=subscribe_keyboard(),
             )
             return
+
+    # Каждый ответ AI платный — не даём одному человеку слать сообщения без счёта
+    if limit := await ai_limit_exceeded(session, crm_client):
+        await message.answer(AI_LIMIT_TEXT[limit])
+        return
 
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
     answer = await manager.reply(session, crm_client, message.text)

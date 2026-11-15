@@ -1,6 +1,11 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Значения из .env.example: с ними запускаться нельзя — они известны всем, кто видел репозиторий
+INSECURE_SECRETS = {"", "change-me"}
+MIN_SECRET_LENGTH = 16
 
 
 class Settings(BaseSettings):
@@ -14,16 +19,34 @@ class Settings(BaseSettings):
     require_subscription: bool = False
     database_url: str = "postgresql+asyncpg://crm:crm@localhost:5432/crm"
     ai_model: str = "claude-opus-5-5"
-    admin_api_key: str = "change-me"
+    admin_api_key: str = ""
     # Вход в веб-админку /admin. Пустой пароль — вход запрещён
     admin_username: str = "admin"
     admin_password: str = ""
     # Ключ для подписи cookie сессии админки
-    secret_key: str = "change-me"
+    secret_key: str = ""
     # Telegram ID админов, которым доступны команды бота вроде /broadcast
     admin_ids: list[int] = []
     # Часовой пояс, в котором админ вводит время отложенных рассылок в боте
     timezone: str = "UTC"
+    # Сколько сообщений клиента AI-менеджер обрабатывает за минуту и за сутки. 0 — без лимита
+    ai_messages_per_minute: int = 5
+    ai_messages_per_day: int = 50
+    # Повторный скан QR того же товара в течение стольких дней не считается новой покупкой
+    qr_repeat_days: int = 30
+    # Сколько разных QR один клиент может отсканировать за сутки. 0 — без лимита
+    qr_scans_per_day: int = 5
+
+    @model_validator(mode="after")
+    def _check_secrets(self) -> "Settings":
+        for name in ("secret_key", "admin_api_key"):
+            value = getattr(self, name)
+            if value in INSECURE_SECRETS or len(value) < MIN_SECRET_LENGTH:
+                raise ValueError(
+                    f"{name.upper()} в .env не задан или слишком простой. "
+                    f"Сгенерируйте свой (не короче {MIN_SECRET_LENGTH} символов): openssl rand -hex 32"
+                )
+        return self
 
 
 @lru_cache
