@@ -11,3 +11,4 @@ sqladmin>=0.20
 itsdangerous>=2.1
 babel>=2.14
 segno>=1.6
+pillow>=11.0

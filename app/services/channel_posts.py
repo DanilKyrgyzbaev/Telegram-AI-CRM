@@ -6,7 +6,8 @@ import logging
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions
+from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions
+from aiogram.types import Message as TgMessage
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.models import ChannelPost
 from app.services.broadcasts import format_local, utcnow
+from app.services.wb_images import CAPTION_LIMIT, product_photo
 
 logger = logging.getLogger(__name__)
 
@@ -53,11 +55,20 @@ def admin_keyboard(post_id: int) -> InlineKeyboardMarkup:
     )
 
 
-def _preview(post: ChannelPost) -> LinkPreviewOptions:
-    # Превью карточки WB над текстом — в канале будет видно фото товара
-    if post.product and post.product.wb_url:
-        return LinkPreviewOptions(url=post.product.wb_url, prefer_large_media=True, show_above_text=True)
-    return LinkPreviewOptions(is_disabled=True)
+async def _send_post(bot: Bot, chat_id: int | str, post: ChannelPost) -> TgMessage:
+    """Пост про товар — фото товара с WB и текст подписью; иначе (или если фото не нашлось) — просто текст."""
+    photo = None
+    if post.product and post.product.wb_article and len(post.text) <= CAPTION_LIMIT:
+        photo = await product_photo(post.product.wb_article)
+    if photo is not None:
+        return await bot.send_photo(
+            chat_id, BufferedInputFile(photo, f"product-{post.product.id}.jpg"),
+            caption=post.text, parse_mode="HTML", reply_markup=post_keyboard(post),
+        )
+    return await bot.send_message(
+        chat_id, post.text, parse_mode="HTML", reply_markup=post_keyboard(post),
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
 
 
 async def _notify_admins(bot: Bot, text: str, reply_markup: InlineKeyboardMarkup | None = None) -> None:
@@ -73,10 +84,7 @@ async def send_draft_to_admins(bot: Bot, post: ChannelPost) -> None:
     for chat_id in get_settings().admin_ids:
         try:
             await bot.send_message(chat_id, f"📝 Черновик поста #{post.id} для канала:")
-            await bot.send_message(
-                chat_id, post.text, parse_mode="HTML",
-                reply_markup=post_keyboard(post), link_preview_options=_preview(post),
-            )
+            await _send_post(bot, chat_id, post)
             await bot.send_message(chat_id, "Что делаем?", reply_markup=admin_keyboard(post.id))
         except TelegramAPIError:
             logger.exception("Не удалось отправить черновик поста %s админу %s", post.id, chat_id)
@@ -164,10 +172,7 @@ async def publish(bot: Bot, session: AsyncSession, post: ChannelPost) -> bool:
         await session.commit()
         return False
     try:
-        message = await bot.send_message(
-            channel_id, post.text, parse_mode="HTML",
-            reply_markup=post_keyboard(post), link_preview_options=_preview(post),
-        )
+        message = await _send_post(bot, channel_id, post)
     except TelegramAPIError as e:
         logger.exception("Channel post %s failed", post.id)
         # Частая причина — бот не админ канала или нет права публиковать сообщения
