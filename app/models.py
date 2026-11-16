@@ -21,10 +21,13 @@ class Client(Base):
     __tablename__ = "clients"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    # Клиент пишет либо в Telegram, либо в Instagram Direct — заполнен один из ID
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, index=True)
+    # Instagram-scoped ID (IGSID) — по нему отвечаем в Direct
+    instagram_id: Mapped[str | None] = mapped_column(String(64), unique=True, index=True)
     username: Mapped[str | None] = mapped_column(String(64))
     full_name: Mapped[str] = mapped_column(String(255))
-    # Метка рекламной кампании из deep-link: t.me/bot?start=<utm>
+    # Метка рекламной кампании из deep-link: t.me/bot?start=<utm>; клиенты из Instagram — «instagram»
     source: Mapped[str | None] = mapped_column(String(64), index=True)
     subscribed: Mapped[bool] = mapped_column(default=False)
     # Клиент заблокировал бота — рассылки ему не отправляются
@@ -166,6 +169,9 @@ class ChannelPost(Base):
     # ID сообщения в канале — по нему пост можно найти в канале
     message_id: Mapped[int | None] = mapped_column(BigInteger)
     error: Mapped[str | None] = mapped_column(Text)
+    # Копия поста в Instagram (только посты про товар: Instagram публикует лишь с фото)
+    instagram_media_id: Mapped[str | None] = mapped_column(String(64))
+    instagram_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     product: Mapped[Product | None] = relationship(lazy="selectin")
@@ -173,3 +179,13 @@ class ChannelPost(Base):
 
     def __str__(self) -> str:
         return f"Пост #{self.id}"
+
+
+class AppSetting(Base):
+    """Значения, которые приложение меняет само (например, обновлённый токен Instagram)."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(default=_utcnow, onupdate=_utcnow)

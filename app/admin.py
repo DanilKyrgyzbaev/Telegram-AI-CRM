@@ -61,7 +61,7 @@ class ClientAdmin(ModelView, model=Client):
     column_labels = {
         Client.full_name: "Имя", Client.username: "Username", Client.source: "Источник",
         Client.subscribed: "Подписан", Client.is_blocked: "Заблокировал бота",
-        Client.created_at: "Создан", Client.telegram_id: "Telegram ID",
+        Client.created_at: "Создан", Client.telegram_id: "Telegram ID", Client.instagram_id: "Instagram ID",
     }
     column_searchable_list = [Client.full_name, Client.username, Client.telegram_id]
     column_filters = [
@@ -289,6 +289,7 @@ class ChannelPostAdmin(ModelView, model=ChannelPost):
         ChannelPost.text: "Текст поста (HTML)", ChannelPost.status: "Статус", "about": "О чём",
         ChannelPost.scheduled_at: "Публикация", ChannelPost.published_at: "Опубликован",
         ChannelPost.error: "Ошибка", ChannelPost.message_id: "ID сообщения в канале",
+        ChannelPost.instagram_media_id: "ID поста в Instagram", ChannelPost.instagram_error: "Ошибка Instagram",
     }
     column_default_sort = (ChannelPost.id, True)
     column_formatters = {
@@ -301,6 +302,7 @@ class ChannelPostAdmin(ModelView, model=ChannelPost):
     column_details_list = [
         ChannelPost.id, ChannelPost.status, ChannelPost.topic, ChannelPost.product, ChannelPost.discount,
         ChannelPost.text, ChannelPost.scheduled_at, ChannelPost.published_at, ChannelPost.message_id, ChannelPost.error,
+        ChannelPost.instagram_media_id, ChannelPost.instagram_error,
     ]
     column_formatters_detail = {
         ChannelPost.status: column_formatters[ChannelPost.status],

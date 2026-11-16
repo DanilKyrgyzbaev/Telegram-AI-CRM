@@ -22,6 +22,18 @@ class Settings(BaseSettings):
     # Название бренда для постов в канал и ссылка на все его товары на WB (кнопка под постом)
     shop_name: str = ""
     shop_url: str = ""
+    # Instagram магазина — кнопка под постами в канале
+    instagram_url: str = ""
+    # Домен сервера (тот же, что для HTTPS админки). Нужен Instagram: он сам скачивает фото для постов
+    domain: str = ""
+    # Instagram API (вход через Instagram). Пусто — интеграция выключена
+    instagram_account_id: str = ""
+    instagram_access_token: str = ""
+    # App Secret приложения Meta — им проверяем, что webhook прислал именно Meta
+    instagram_app_secret: str = ""
+    # Любая строка; та же вписывается в настройках webhook в кабинете Meta
+    instagram_verify_token: str = ""
+    instagram_api_version: str = "v23.0"
     database_url: str = "postgresql+asyncpg://crm:crm@localhost:5432/crm"
     ai_model: str = "claude-opus-5-5"
     admin_api_key: str = ""
@@ -41,6 +53,10 @@ class Settings(BaseSettings):
     qr_repeat_days: int = 30
     # Сколько разных QR один клиент может отсканировать за сутки. 0 — без лимита
     qr_scans_per_day: int = 5
+
+    @property
+    def instagram_enabled(self) -> bool:
+        return bool(self.instagram_account_id and self.instagram_access_token)
 
     @model_validator(mode="after")
     def _check_secrets(self) -> "Settings":
