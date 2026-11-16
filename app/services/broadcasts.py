@@ -46,10 +46,12 @@ def format_local(value: datetime) -> str:
     return value.replace(tzinfo=timezone.utc).astimezone(local_tz()).strftime("%d.%m.%Y %H:%M")
 
 
-def recipients_query(source: str | None) -> Select[tuple[Client]]:
+def recipients_query(source: str | None, client_id: int | None = None) -> Select[tuple[Client]]:
     query = select(Client).where(Client.is_blocked.is_(False))
     if source:
         query = query.where(Client.source == source)
+    if client_id is not None:
+        query = query.where(Client.id == client_id)
     return query
 
 
@@ -103,7 +105,7 @@ async def run_broadcast(broadcast_id: int) -> bool:
             while True:
                 clients = (
                     await session.scalars(
-                        recipients_query(broadcast.source)
+                        recipients_query(broadcast.source, broadcast.client_id)
                         .where(Client.id > broadcast.last_client_id)
                         .order_by(Client.id)
                         .limit(BATCH_SIZE)

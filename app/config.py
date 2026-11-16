@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     channel_id: str = ""
     # True — AI-менеджер отвечает только подписчикам канала
     require_subscription: bool = False
+    # True — посты, которые AI написал сам (новый товар, промокод), публикуются в канал без подтверждения
+    channel_autopublish: bool = False
+    # Название бренда для постов в канал и ссылка на все его товары на WB (кнопка под постом)
+    shop_name: str = ""
+    shop_url: str = ""
     database_url: str = "postgresql+asyncpg://crm:crm@localhost:5432/crm"
     ai_model: str = "claude-opus-5-5"
     admin_api_key: str = ""
