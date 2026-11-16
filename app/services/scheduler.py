@@ -2,12 +2,13 @@ import asyncio
 import logging
 
 from aiogram import Bot
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Broadcast
+from app.models import Broadcast, ChannelPost
 from app.services.broadcasts import STALE_AFTER, run_and_report, utcnow
+from app.services.channel_posts import publish_and_report
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +16,29 @@ CHECK_INTERVAL = 30  # секунд
 
 
 async def run_scheduler(bot: Bot) -> None:
-    """Раз в CHECK_INTERVAL секунд запускает рассылки, время которых наступило."""
+    """Раз в CHECK_INTERVAL секунд публикует посты и запускает рассылки, время которых наступило."""
     while True:
         try:
+            # Посты раньше рассылок: долгая рассылка не должна задерживать публикацию
+            await _publish_due_posts(bot)
             await _run_due_broadcasts(bot)
         except Exception:
             logger.exception("Scheduler iteration failed")
         await asyncio.sleep(CHECK_INTERVAL)
+
+
+async def _publish_due_posts(bot: Bot) -> None:
+    async with SessionLocal() as session:
+        due_ids = (
+            await session.scalars(
+                select(ChannelPost.id).where(
+                    ChannelPost.status == "scheduled", ChannelPost.scheduled_at <= utcnow()
+                )
+            )
+        ).all()
+    for post_id in due_ids:
+        logger.info("Publishing channel post %s", post_id)
+        await publish_and_report(bot, post_id, ("scheduled",))
 
 
 async def _run_due_broadcasts(bot: Bot) -> None:

@@ -94,6 +94,9 @@ class Discount(Base):
 
     product: Mapped[Product | None] = relationship(lazy="selectin")
 
+    def __str__(self) -> str:
+        return f"{self.code} (−{self.percent}%)"
+
 
 class Campaign(Base):
     __tablename__ = "campaigns"
@@ -126,6 +129,8 @@ class Broadcast(Base):
     text: Mapped[str] = mapped_column(Text)  # HTML-разметка Telegram
     # Если задано — только клиентам из этой рекламной кампании (Client.source)
     source: Mapped[str | None] = mapped_column(String(64))
+    # Если задано — только этому клиенту (личное сообщение от магазина)
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"))
     status: Mapped[str] = mapped_column(String(16), default="pending")
     # scheduled → pending → sending → done; interrupted — старая незавершённая рассылка, не возобновляется
     # Время отправки в UTC; None — отправить сразу
@@ -138,3 +143,33 @@ class Broadcast(Base):
     updated_at: Mapped[datetime] = mapped_column(default=_utcnow, server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     finished_at: Mapped[datetime | None]
+
+    client: Mapped[Client | None] = relationship(lazy="selectin")
+
+
+class ChannelPost(Base):
+    """Пост в Telegram-канал магазина. Текст пишет AI (или админ), публикует бот."""
+
+    __tablename__ = "channel_posts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Задание для AI: «пост про скидки чёрной пятницы». Пусто — пост про товар или промокод ниже
+    topic: Mapped[str] = mapped_column(Text, default="", server_default="")
+    product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id", ondelete="SET NULL"))
+    discount_id: Mapped[int | None] = mapped_column(ForeignKey("discounts.id", ondelete="SET NULL"))
+    text: Mapped[str] = mapped_column(Text, default="", server_default="")  # HTML-разметка Telegram
+    # generating → draft → scheduled → publishing → published | failed
+    status: Mapped[str] = mapped_column(String(16), default="draft", index=True)
+    # Время публикации в UTC; заполняется, когда пост поставлен в очередь
+    scheduled_at: Mapped[datetime | None] = mapped_column(index=True)
+    published_at: Mapped[datetime | None]
+    # ID сообщения в канале — по нему пост можно найти в канале
+    message_id: Mapped[int | None] = mapped_column(BigInteger)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    product: Mapped[Product | None] = relationship(lazy="selectin")
+    discount: Mapped[Discount | None] = relationship(lazy="selectin")
+
+    def __str__(self) -> str:
+        return f"Пост #{self.id}"
