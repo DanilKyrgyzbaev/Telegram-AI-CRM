@@ -3,7 +3,9 @@
 import asyncio
 import html
 import logging
+import re
 
+import aiohttp
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions
@@ -14,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.posts import write_post
 from app.config import get_settings
 from app.db import SessionLocal
+from app.instagram import api as instagram
 from app.models import ChannelPost
 from app.services.broadcasts import format_local, utcnow
 from app.services.wb_images import CAPTION_LIMIT, product_photo
@@ -40,6 +43,8 @@ def post_keyboard(post: ChannelPost) -> InlineKeyboardMarkup | None:
         rows.append([InlineKeyboardButton(text="🛒 Смотреть на Wildberries", url=post.product.wb_url)])
     if shop_url := get_settings().shop_url:
         rows.append([InlineKeyboardButton(text="🛍 Все товары магазина", url=shop_url)])
+    if instagram_url := get_settings().instagram_url:
+        rows.append([InlineKeyboardButton(text="📸 Мы в Instagram", url=instagram_url)])
     return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
 
 
@@ -186,13 +191,39 @@ async def publish(bot: Bot, session: AsyncSession, post: ChannelPost) -> bool:
     return True
 
 
+async def publish_instagram(session: AsyncSession, post: ChannelPost) -> str | None:
+    """Копия поста про товар в Instagram. Возвращает строку для отчёта админу или None, если не публиковали."""
+    if not get_settings().instagram_enabled or post.product is None:
+        return None
+    image_url = instagram.product_image_url(post.product)
+    if image_url is None:
+        return None
+    # В Instagram нет HTML-разметки: снимаем теги, возвращаем экранированные символы
+    caption = html.unescape(re.sub(r"<[^>]+>", "", post.text))
+    # Ссылки в подписи Instagram не кликабельны — даём артикул для поиска на WB
+    caption += f"\n\n🛒 Артикул на Wildberries: {post.product.wb_article}"
+    try:
+        post.instagram_media_id = await instagram.publish_photo(image_url, caption)
+        post.instagram_error = None
+    except (instagram.InstagramError, aiohttp.ClientError, asyncio.TimeoutError) as e:
+        logger.exception("Instagram post %s failed", post.id)
+        post.instagram_error = str(e)
+    await session.commit()
+    if post.instagram_error:
+        return f"⚠️ В Instagram не опубликован: {html.escape(post.instagram_error)}"
+    return "📸 И в Instagram."
+
+
 async def publish_and_report(bot: Bot, post_id: int, statuses: tuple[str, ...]) -> None:
     async with SessionLocal() as session:
         post = await claim(session, post_id, statuses)
         if post is None:
             return
         if await publish(bot, session, post):
-            await _notify_admins(bot, f"✅ Пост #{post_id} опубликован в канале.")
+            instagram_note = await publish_instagram(session, post)
+            await _notify_admins(
+                bot, "\n".join(filter(None, [f"✅ Пост #{post_id} опубликован в канале.", instagram_note]))
+            )
         else:
             await _notify_admins(
                 bot,

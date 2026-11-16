@@ -8,7 +8,8 @@ class ClientOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    telegram_id: int
+    telegram_id: int | None
+    instagram_id: str | None
     username: str | None
     full_name: str
     source: str | None

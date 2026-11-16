@@ -54,6 +54,12 @@ PROMO_NOTE = (
     "на скидку {percent}% для следующего заказа на Wildberries — коротко упомяни это, сам код не пиши."
 )
 
+COMMENT_EVENT = (
+    "[Клиент оставил комментарий под постом в Instagram{about}: «{text}». "
+    "Ты пишешь ему в личные сообщения в ответ на этот комментарий: поблагодари, ответь на вопрос, "
+    "если он есть, и предложи помочь с выбором. Коротко.]"
+)
+
 FALLBACK = "Извините, сейчас не получается ответить. Напишите, пожалуйста, чуть позже."
 
 # Ключ читается из ANTHROPIC_API_KEY
@@ -105,6 +111,17 @@ async def greet_purchase(
     event = PURCHASE_EVENT.format(name=product.name, promo_note=promo_note)
     session.add(Message(client_id=crm_client.id, role="event", text=event))
     fallback = f"Спасибо за покупку «{product.name}»! 🙌 Если захотите подобрать что-то к ней — просто напишите."
+    return await _generate(session, crm_client, fallback)
+
+
+async def reply_to_comment(
+    session: AsyncSession, crm_client: Client, comment: str, product: Product | None = None
+) -> AIReply:
+    """Сообщение в Direct автору комментария в Instagram. product — товар из поста, если он известен."""
+    about = f" о товаре #{product.id} «{product.name}»" if product else ""
+    event = COMMENT_EVENT.format(about=about, text=comment)
+    session.add(Message(client_id=crm_client.id, role="event", text=event))
+    fallback = "Спасибо за комментарий! 🙌 Если хотите, помогу подобрать размер или модель — просто напишите."
     return await _generate(session, crm_client, fallback)
 
 

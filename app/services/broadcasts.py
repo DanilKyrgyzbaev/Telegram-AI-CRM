@@ -47,7 +47,8 @@ def format_local(value: datetime) -> str:
 
 
 def recipients_query(source: str | None, client_id: int | None = None) -> Select[tuple[Client]]:
-    query = select(Client).where(Client.is_blocked.is_(False))
+    # Рассылки — только в Telegram: Instagram запрещает писать клиенту позже чем через 24 часа после его сообщения
+    query = select(Client).where(Client.is_blocked.is_(False), Client.telegram_id.is_not(None))
     if source:
         query = query.where(Client.source == source)
     if client_id is not None:
