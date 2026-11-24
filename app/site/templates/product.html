@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} — {{ shop }}{% endblock %}
+{% block description %}{{ (product.description or product.name) | truncate(160) }}{% endblock %}
+{% block og %}
+<meta property="og:type" content="product">
+{% if product.wb_article %}<meta property="og:image" content="{{ request.url_for('product_image', product_id=product.id) }}">{% endif %}
+{% endblock %}
+{% block style %}
+.back { display: inline-block; margin: 24px 0 20px; color: var(--muted); text-decoration: none; font-size: 14px; }
+.back:hover { color: var(--ink); }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+.item .cat { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.item h1 { font: 600 clamp(30px, 4.5vw, 46px)/1.1 "Cormorant Garamond", Georgia, serif; margin: 6px 0 14px; }
+.item .price { font-size: 26px; font-weight: 700; }
+.item .note { color: var(--muted); font-size: 13px; margin: 4px 0 24px; }
+.item .desc { white-space: pre-line; margin: 0 0 28px; }
+.item .actions { display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
+.item .article { color: var(--muted); font-size: 13px; margin-top: 18px; }
+h2 { font: 600 30px/1.2 "Cormorant Garamond", Georgia, serif; margin: 64px 0 20px; }
+@media (max-width: 760px) { .item { grid-template-columns: 1fr; gap: 24px; } .item .actions { max-width: none; } }
+{% endblock %}
+{% block content %}
+<a class="back" href="/{% if product.category %}?category={{ product.category | urlencode }}{% endif %}">← Каталог</a>
+<div class="item">
+  {% if product.wb_article %}<img class="photo" src="/media/products/{{ product.id }}.jpg" alt="{{ product.name }}" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'photo'}))">{% else %}<div class="photo"></div>{% endif %}
+  <div>
+    {% if product.category %}<span class="cat">{{ product.category }}</span>{% endif %}
+    <h1>{{ product.name }}</h1>
+    <div class="price">{{ product.price | price }}</div>
+    <p class="note">Актуальная цена и размеры — на Wildberries</p>
+    {% if product.description %}<p class="desc">{{ product.description }}</p>{% endif %}
+    <div class="actions">
+      {% if product.wb_url %}<a class="btn btn-buy" href="{{ product.wb_url }}" target="_blank" rel="noopener">Купить на Wildberries</a>{% endif %}
+      {% if bot_url %}<a class="btn btn-ghost" href="{{ bot_url }}" target="_blank" rel="noopener">Спросить про размер в Telegram</a>{% endif %}
+    </div>
+    {% if product.wb_article %}<p class="article">Артикул WB: {{ product.wb_article }}</p>{% endif %}
+  </div>
+</div>
+
+{% if similar %}
+<h2>Похожие модели</h2>
+<div class="grid">
+  {% for p in similar %}
+  <a class="card" href="/product/{{ p.id }}">
+    {% if p.wb_article %}<img class="photo" src="/media/products/{{ p.id }}.jpg" alt="{{ p.name }}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'photo'}))">{% else %}<div class="photo"></div>{% endif %}
+    <span class="name">{{ p.name }}</span>
+    <span class="price">{{ p.price | price }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ shop }}{% if current %} — {{ current }}{% else %} — каталог{% endif %}{% endblock %}
+{% block style %}
+.hero { padding: 48px 0 28px; }
+.hero h1 { font: 600 clamp(36px, 6vw, 60px)/1.05 "Cormorant Garamond", Georgia, serif; margin: 0 0 12px; }
+.hero p { margin: 0 0 22px; color: var(--muted); max-width: 560px; }
+.hero .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 28px; }
+.chip { padding: 8px 16px; border-radius: 999px; background: var(--chip); text-decoration: none; font-size: 14px; font-weight: 500; }
+.chip.on { background: var(--ink); color: var(--bg); }
+.empty { color: var(--muted); padding: 40px 0; }
+{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Одежда {{ shop }}</h1>
+  <p>{% if categories %}{{ categories | join(', ') | capitalize }}. {% endif %}Выберите модель — купить её можно на Wildberries с привычной доставкой.</p>
+  <div class="actions">
+    {% if shop_url %}<a class="btn btn-buy" href="{{ shop_url }}" target="_blank" rel="noopener">Все товары на WB</a>{% endif %}
+    {% if bot_url %}<a class="btn btn-ghost" href="{{ bot_url }}" target="_blank" rel="noopener">Помощь с выбором в Telegram</a>{% endif %}
+  </div>
+</section>
+
+{% if categories %}
+<div class="chips">
+  <a class="chip{% if not current %} on{% endif %}" href="/">Все</a>
+  {% for c in categories %}
+  <a class="chip{% if c == current %} on{% endif %}" href="/?category={{ c | urlencode }}">{{ c }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if products %}
+<div class="grid">
+  {% for p in products %}
+  <a class="card" href="/product/{{ p.id }}">
+    {% if p.wb_article %}<img class="photo" src="/media/products/{{ p.id }}.jpg" alt="{{ p.name }}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'photo'}))">{% else %}<div class="photo"></div>{% endif %}
+    {% if p.category %}<span class="cat">{{ p.category }}</span>{% endif %}
+    <span class="name">{{ p.name }}</span>
+    <span class="price">{{ p.price | price }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty">Здесь пока нет товаров.</p>
+{% endif %}
+{% endblock %}
