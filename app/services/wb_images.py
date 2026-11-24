@@ -18,6 +18,9 @@ CAPTION_LIMIT = 1024
 
 # Артикул → номер сервера basket, чтобы не искать заново при каждом посте
 _baskets: dict[int, int] = {}
+# Каждый поиск — 80 запросов разом; сайт-каталог просит много фото одновременно,
+# и при параллельных поисках WB перестаёт отвечать — ищем не больше двух за раз
+_search_limit = asyncio.Semaphore(2)
 
 
 def _url(article: int, basket: int) -> str:
@@ -28,6 +31,14 @@ def _url(article: int, basket: int) -> str:
 
 
 async def _find_basket(http: aiohttp.ClientSession, article: int) -> int | None:
+    async with _search_limit:
+        # Пока ждали очереди, этот же артикул мог найти другой запрос
+        if article in _baskets:
+            return _baskets[article]
+        return await _probe_all(http, article)
+
+
+async def _probe_all(http: aiohttp.ClientSession, article: int) -> int | None:
     async def probe(basket: int) -> int | None:
         try:
             async with http.head(_url(article, basket)) as response:
