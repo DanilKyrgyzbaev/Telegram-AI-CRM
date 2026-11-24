@@ -71,6 +71,10 @@ footer a { color: var(--muted); }
   <span>© {{ shop }}. Покупка и доставка — через Wildberries.</span>
   <span>
     {% if bot_url %}<a href="{{ bot_url }}" target="_blank" rel="noopener">Задать вопрос в Telegram</a> · {% endif %}
+    {# На телефоне меню в шапке скрыто — дублируем его ссылки здесь #}
+    {% if channel_url %}<a href="{{ channel_url }}" target="_blank" rel="noopener">Telegram-канал</a> · {% endif %}
+    {% if instagram_url %}<a href="{{ instagram_url }}" target="_blank" rel="noopener">Instagram</a> · {% endif %}
+    {% if shop_url %}<a href="{{ shop_url }}" target="_blank" rel="noopener">Мы на Wildberries</a> · {% endif %}
     <a href="/privacy">Конфиденциальность</a>
   </span>
 </div></footer>
