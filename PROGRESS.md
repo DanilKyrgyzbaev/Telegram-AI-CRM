@@ -9,8 +9,8 @@ _Обновлено: 13.11.2026_
 предлагает похожие/подходящие товары (кнопки ведут на карточки WB), выдаёт промокод WB
 на следующий заказ и приглашает в канал.
 
-- Бот: **@Miss_Way_bot** («MissWay Boot»)
-- Канал: **@Miss_Way** (бот — админ канала)
+- Бот: **@moodelle_store_bot** («Moodelle»); до 25.11.2026 был @Miss_Way_bot — в его описании стоит «Мы переехали»
+- Канал: **t.me/moodelle_store** «Moodelle» (до 25.11.2026 — @Miss_Way; бот — админ канала)
 - Админ бота (Telegram ID): `761517835`
 
 ## Что сделано ✅
@@ -20,11 +20,11 @@ _Обновлено: 13.11.2026_
 | Backend на Python: FastAPI + PostgreSQL + Alembic | `app/api/`, `app/models.py`, `migrations/` |
 | Telegram-бот на aiogram 3 | `app/bot/` |
 | AI-менеджер на Claude API: консультации по каталогу, помнит покупки клиента, кнопки на товары WB | `app/ai/manager.py` |
-| QR-коды для упаковки: `t.me/Miss_Way_bot?start=q<случайный код товара>` → благодарность + рекомендации | `app/services/qr.py`, `app/bot/handlers/start.py` |
+| QR-коды для упаковки: `t.me/moodelle_store_bot?start=q<случайный код товара>` → благодарность + рекомендации | `app/services/qr.py`, `app/bot/handlers/start.py` |
 | Промокод WB после сканирования QR (общий, из кабинета продавца WB) | `app/services/promo.py` |
 | Проверка подписки на канал + автоучёт подписок/отписок | `app/services/subscription.py`, `app/bot/handlers/channel.py` |
 | Рассылки: сразу или по расписанию — из бота, админки и API | `app/services/broadcasts.py`, `app/services/scheduler.py`, `app/bot/handlers/broadcast.py` |
-| Учёт рекламы: ссылки `t.me/Miss_Way_bot?start=<метка>` | `app/bot/handlers/start.py` |
+| Учёт рекламы: ссылки `t.me/moodelle_store_bot?start=<метка>` | `app/bot/handlers/start.py` |
 | Веб-админка (SQLAdmin, на русском) | `app/admin.py` |
 | Защита от накрутки: лимиты сообщений к AI, повторный скан QR не считается покупкой, код в QR нельзя подобрать | `app/services/limits.py`, `app/services/qr.py` |
 | Рассылка продолжается с места остановки после перезапуска бота | `app/services/broadcasts.py`, `app/services/scheduler.py` |
