@@ -75,7 +75,7 @@ docker compose --profile https up -d --build
 
 ```bash
 docker compose ps                   # все сервисы должны быть running / healthy
-docker compose logs -f bot          # должно быть «Run polling for bot @Miss_Way_bot»
+docker compose logs -f bot          # должно быть «Run polling for bot @moodelle_store_bot»
 ```
 
 Напишите боту в Telegram — он должен ответить.
