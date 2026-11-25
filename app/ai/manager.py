@@ -114,11 +114,12 @@ async def greet_purchase(
     return await _generate(session, crm_client, fallback)
 
 
-async def note_product_interest(session: AsyncSession, crm_client: Client, product: Product) -> None:
-    """Клиент нажал «Спросить AI» на товаре в каталоге: запоминаем, о чём будет следующий вопрос."""
+async def note_product_interest(session: AsyncSession, crm_client: Client, product: Product, about_size: bool) -> None:
+    """Клиент пришёл спросить о товаре (из каталога или с сайта): AI поймёт следующий вопрос в контексте товара."""
+    goal = "узнать, какой размер ему подойдёт" if about_size else "задать о нём вопрос"
     session.add(Message(
         client_id=crm_client.id, role="event",
-        text=f"[Клиент открыл в каталоге товар #{product.id} «{product.name}» и хочет задать о нём вопрос]",
+        text=f"[Клиент открыл товар #{product.id} «{product.name}» и хочет {goal}]",
     ))
     await session.commit()
 

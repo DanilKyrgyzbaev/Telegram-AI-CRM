@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.db import get_session
 from app.models import Product
-from app.services.qr import APP_START_PARAM, ASK_START_PREFIX, bot_username
+from app.services.qr import APP_START_PARAM, ASK_START_PREFIX, SIZE_START_PREFIX, bot_username
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,9 @@ async def product_page(
         )
     )
     return templates.TemplateResponse(
-        request, "product.html", await _context(request, product=product, similar=similar)
+        request, "product.html",
+        await _context(request, product=product, similar=similar,
+                       bot_size_url=await _ask_url(f"{SIZE_START_PREFIX}{product.id}")),
     )
 
 

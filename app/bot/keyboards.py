@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp, WebAppInfo
 
 from app.config import get_settings
 from app.models import Product
@@ -10,6 +10,12 @@ def catalog_url() -> str | None:
     """Адрес каталога-Mini App на нашем сайте; без домена Telegram его не откроет."""
     domain = get_settings().domain
     return f"https://{domain}/app" if domain else None
+
+
+def catalog_menu_button() -> MenuButtonWebApp | None:
+    """Кнопка «Каталог» слева от поля ввода в чате с ботом."""
+    url = catalog_url()
+    return MenuButtonWebApp(text="Каталог", web_app=WebAppInfo(url=url)) if url else None
 
 
 def catalog_rows() -> list[list[InlineKeyboardButton]]:

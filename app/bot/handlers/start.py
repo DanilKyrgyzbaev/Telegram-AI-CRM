@@ -11,7 +11,8 @@ from app.models import Discount, Product, Purchase
 from app.services.clients import get_or_create_client
 from app.services.limits import is_repeat_scan, qr_limit_exceeded
 from app.services.promo import current_promo, format_expires
-from app.services.qr import is_app_param, is_qr_param, parse_ask_param, parse_start_param
+from app.bot.keyboards import catalog_menu_button
+from app.services.qr import parse_product_question, parse_start_param, source_for
 
 router = Router()
 
@@ -34,16 +35,24 @@ async def start(message: Message, command: CommandObject, session: AsyncSession)
         telegram_id=user.id,
         full_name=user.full_name,
         username=user.username,
-        source="qr" if is_qr_param(command.args) else "app" if is_app_param(command.args) else command.args,
+        source=source_for(command.args),
     )
+    # Кнопка «Каталог» у поля ввода: ставим каждому чату — значение «для всех» Telegram применяет не всегда
+    if menu_button := catalog_menu_button():
+        await message.bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=menu_button)
 
-    # Из каталога (Mini App) нажали «Спросить AI» на товаре — следующий вопрос AI поймёт в контексте товара
-    if (asked_id := parse_ask_param(command.args)) and (asked := await session.get(Product, asked_id)):
-        await manager.note_product_interest(session, crm_client, asked)
-        await message.answer(
-            f"Что хотите узнать про «{asked.name}»? 🙂\n"
-            "Например: какой размер взять при моём росте, как сидит, с чем носить."
-        )
+    # Пришли спросить о товаре (из каталога или кнопкой «Спросить про размер» на сайте):
+    # следующий вопрос AI поймёт в контексте этого товара
+    if (question := parse_product_question(command.args)) and (asked := await session.get(Product, question[1])):
+        about_size = question[0] == "size"
+        await manager.note_product_interest(session, crm_client, asked, about_size)
+        if about_size:
+            text = (f"Подберём размер для «{asked.name}» 📏\n"
+                    "Напишите рост, вес и как любите носить — свободно или по фигуре.")
+        else:
+            text = (f"Что хотите узнать про «{asked.name}»? 🙂\n"
+                    "Например: какой размер взять при моём росте, как сидит, с чем носить.")
+        await message.answer(text)
         return
 
     product = None

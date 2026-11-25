@@ -31,7 +31,7 @@ h2 { font: 600 30px/1.2 "Cormorant Garamond", Georgia, serif; margin: 64px 0 20p
     {% if product.description %}<p class="desc">{{ product.description }}</p>{% endif %}
     <div class="actions">
       {% if product.wb_url %}<a class="btn btn-buy" href="{{ product.wb_url }}" target="_blank" rel="noopener">Купить на Wildberries</a>{% endif %}
-      {% if bot_url %}<a class="btn btn-ghost" href="{{ bot_url }}" target="_blank" rel="noopener">Спросить про размер в Telegram</a>{% endif %}
+      {% if bot_size_url %}<a class="btn btn-ghost" href="{{ bot_size_url }}" target="_blank" rel="noopener">Спросить про размер в Telegram</a>{% endif %}
     </div>
     {% if product.wb_article %}<p class="article">Артикул WB: {{ product.wb_article }}</p>{% endif %}
   </div>
