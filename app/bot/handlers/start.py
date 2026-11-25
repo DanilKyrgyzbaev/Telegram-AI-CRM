@@ -11,7 +11,8 @@ from app.models import Discount, Product, Purchase
 from app.services.clients import get_or_create_client
 from app.services.limits import is_repeat_scan, qr_limit_exceeded
 from app.services.promo import current_promo, format_expires
-from app.services.qr import is_qr_param, parse_start_param
+from app.bot.keyboards import catalog_menu_button, height_keyboard
+from app.services.qr import parse_product_question, parse_start_param, source_for
 
 router = Router()
 
@@ -34,8 +35,21 @@ async def start(message: Message, command: CommandObject, session: AsyncSession)
         telegram_id=user.id,
         full_name=user.full_name,
         username=user.username,
-        source="qr" if is_qr_param(command.args) else command.args,
+        source=source_for(command.args),
     )
+    # Кнопка «Каталог» у поля ввода: ставим каждому чату — значение «для всех» Telegram применяет не всегда
+    if menu_button := catalog_menu_button():
+        await message.bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=menu_button)
+
+    # Пришли спросить о товаре (из каталога или кнопкой «Спросить про размер» на сайте):
+    # следующий вопрос AI поймёт в контексте этого товара
+    if (question := parse_product_question(command.args)) and (asked := await session.get(Product, question[1])):
+        about_size = question[0] == "size"
+        await manager.note_product_interest(session, crm_client, asked, about_size)
+        await message.answer(
+            manager.product_question_text(asked, about_size), reply_markup=height_keyboard() if about_size else None
+        )
+        return
 
     product = None
     if qr_token:

@@ -23,6 +23,9 @@ SYSTEM_PROMPT = """Ты — вежливый менеджер по продаж�
 Ссылки в текст не вставляй: в product_ids перечисли номера (#) товаров, которые ты упомянул в ответе, —
 под сообщением появятся кнопки, ведущие на эти товары на Wildberries.
 Сообщения в квадратных скобках — служебные события от системы, а не слова клиента.
+Подбирая размер, опирайся на рост, вес и желаемую посадку клиента и на размерную сетку из описания товара,
+если она есть. Если сетки нет — назови ориентир (например, «скорее всего 44–46») и посоветуй сверить
+с таблицей размеров в карточке на Wildberries. Точных замеров изделия не выдумывай.
 
 Каталог:
 {catalog}
@@ -112,6 +115,27 @@ async def greet_purchase(
     session.add(Message(client_id=crm_client.id, role="event", text=event))
     fallback = f"Спасибо за покупку «{product.name}»! 🙌 Если захотите подобрать что-то к ней — просто напишите."
     return await _generate(session, crm_client, fallback)
+
+
+def product_question_text(product: Product | None, about_size: bool) -> str:
+    """Первое сообщение бота, когда клиент пришёл спросить о товаре (или просто открыл помощь из каталога)."""
+    if product is None:
+        return "Напишите, что ищете — подберу модель и размер 🙂"
+    if about_size:
+        return (f"Подберём размер для «{product.name}» 📏\n"
+                "Какой у вас рост? Выберите кнопкой внизу или напишите сами.")
+    return (f"Что хотите узнать про «{product.name}»? 🙂\n"
+            "Например: какой размер взять при моём росте, как сидит, с чем носить.")
+
+
+async def note_product_interest(session: AsyncSession, crm_client: Client, product: Product, about_size: bool) -> None:
+    """Клиент пришёл спросить о товаре (из каталога или с сайта): AI поймёт следующий вопрос в контексте товара."""
+    goal = "узнать, какой размер ему подойдёт" if about_size else "задать о нём вопрос"
+    session.add(Message(
+        client_id=crm_client.id, role="event",
+        text=f"[Клиент открыл товар #{product.id} «{product.name}» и хочет {goal}]",
+    ))
+    await session.commit()
 
 
 async def reply_to_comment(

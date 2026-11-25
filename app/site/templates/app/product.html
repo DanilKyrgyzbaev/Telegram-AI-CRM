@@ -1,0 +1,51 @@
+{% extends "app/base.html" %}
+{% block title %}{{ product.name }} — {{ shop }}{% endblock %}
+{% block style %}
+.cat { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+h1 { font-size: 22px; line-height: 1.2; margin: 6px 0 8px; }
+.price { font-size: 24px; }
+.desc { white-space: pre-line; margin: 14px 0 18px; }
+.actions { display: flex; flex-direction: column; gap: 10px; }
+h2 { font-size: 18px; margin: 28px 0 12px; }
+.similar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
+.similar .name { font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card { display: flex; flex-direction: column; gap: 6px; }
+{% endblock %}
+{% block content %}
+{% if product.wb_article %}<img class="photo" src="/media/products/{{ product.id }}.jpg" alt="{{ product.name }}">{% else %}<div class="photo"></div>{% endif %}
+<p class="cat muted">{{ product.category or "" }}</p>
+<h1>{{ product.name }}</h1>
+<div class="price">{{ product.price | price }}</div>
+<p class="muted" style="font-size: 13px; margin: 4px 0 0">Актуальная цена и размеры — на Wildberries</p>
+{% if product.description %}<p class="desc">{{ product.description }}</p>{% endif %}
+<div class="actions">
+  {# В Telegram «Купить» — системная кнопка внизу экрана; вне Telegram — обычная #}
+  {% if product.wb_url %}<button class="btn" id="buy" onclick="openExternal('{{ product.wb_url }}')">🛒 Купить на Wildberries</button>{% endif %}
+  <button class="btn btn-soft" onclick="askAI({{ product.id }}, true, '{{ bot_ask_url or '' }}')">💬 Спросить AI про размер и посадку</button>
+</div>
+{% if similar %}
+<h2>Похожие модели</h2>
+<div class="similar">
+  {% for p in similar %}
+  <a class="card" href="/app/product/{{ p.id }}">
+    {% if p.wb_article %}<img class="photo" src="/media/products/{{ p.id }}.jpg" alt="" loading="lazy">{% else %}<div class="photo"></div>{% endif %}
+    <span class="name">{{ p.name }}</span>
+    <span class="price">{{ p.price | price }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+{% block script %}
+<script>
+if (tg) {
+  tg.BackButton.show();
+  tg.BackButton.onClick(() => { haptic(); history.length > 1 ? history.back() : location.assign("/app"); });
+  {% if product.wb_url %}
+  document.getElementById("buy").hidden = true;
+  tg.MainButton.setParams({ text: "Купить на Wildberries · {{ product.price | price }}", is_visible: true });
+  tg.MainButton.onClick(() => openExternal("{{ product.wb_url }}"));
+  {% endif %}
+}
+</script>
+{% endblock %}

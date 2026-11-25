@@ -12,6 +12,12 @@ _bot_username: str | None = None
 _QR_PARAM = re.compile(r"q([0-9a-f]{12})")
 # Старый формат ссылок (p<номер товара>) легко подобрать перебором — он больше не засчитывается
 _LEGACY_QR_PARAM = re.compile(r"p\d+")
+# Вопрос о конкретном товаре: «ask<ID>» — из каталога в Telegram (Mini App), «size<ID>» — кнопка
+# «Спросить про размер» на сайте. «app» — общий вопрос из каталога
+APP_START_PARAM = "app"
+ASK_START_PREFIX = "ask"
+SIZE_START_PREFIX = "size"
+_PRODUCT_QUESTION = re.compile(rf"({ASK_START_PREFIX}|{SIZE_START_PREFIX})(\d+)")
 
 
 def start_param(qr_token: str) -> str:
@@ -23,6 +29,23 @@ def parse_start_param(args: str | None) -> str | None:
     """Код товара (Product.qr_token) из параметра /start или None, если это не QR товара."""
     match = _QR_PARAM.fullmatch(args or "")
     return match.group(1) if match else None
+
+
+def parse_product_question(args: str | None) -> tuple[str, int] | None:
+    """(«ask» или «size», ID товара), если клиент пришёл спросить о товаре, иначе None."""
+    match = _PRODUCT_QUESTION.fullmatch(args or "")
+    return (match.group(1), int(match.group(2))) if match else None
+
+
+def source_for(args: str | None) -> str | None:
+    """Источник клиента для CRM по параметру /start: QR, каталог в Telegram, сайт или метка рекламы."""
+    if is_qr_param(args):
+        return "qr"
+    if args == APP_START_PARAM or args and args.startswith(ASK_START_PREFIX) and parse_product_question(args):
+        return "app"
+    if parse_product_question(args):
+        return "site"
+    return args
 
 
 def is_qr_param(args: str | None) -> bool:

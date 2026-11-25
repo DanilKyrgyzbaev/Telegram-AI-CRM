@@ -1,0 +1,62 @@
+{% extends "app/base.html" %}
+{% block style %}
+.top { display: flex; align-items: center; justify-content: center; padding: 6px 0 12px; }
+.logo { height: 40px; aspect-ratio: 961 / 358; background: var(--text);
+        -webkit-mask: url(/logo.png) center / contain no-repeat; mask: url(/logo.png) center / contain no-repeat; }
+.search { width: 100%; padding: 12px 14px; border: 0; border-radius: 12px; background: var(--bg2); color: var(--text);
+          font: inherit; outline: none; }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 0 14px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; padding: 8px 14px; border-radius: 999px; background: var(--bg2); font-size: 14px; font-weight: 500; border: 0; color: var(--text); font-family: inherit; }
+.chip.on { background: var(--button); color: var(--button-text); }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 10px; }
+.card { display: flex; flex-direction: column; gap: 6px; }
+.card .name { font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.empty { padding: 40px 0; text-align: center; }
+.ask { margin-top: 24px; }
+{% endblock %}
+{% block content %}
+<div class="top"><span class="logo" role="img" aria-label="{{ shop }}"></span></div>
+<input class="search" id="search" type="search" placeholder="Поиск: палаццо, худи, костюм…" autocomplete="off">
+<div class="chips" id="chips">
+  <button class="chip on" data-category="">Все</button>
+  {% for c in categories %}<button class="chip" data-category="{{ c }}">{{ c }}</button>{% endfor %}
+</div>
+<div class="grid" id="grid">
+  {% for p in products %}
+  <a class="card" href="/app/product/{{ p.id }}" data-category="{{ p.category or '' }}" data-name="{{ (p.name ~ ' ' ~ (p.category or '')) | lower }}">
+    {% if p.wb_article %}<img class="photo" src="/media/products/{{ p.id }}.jpg" alt="" loading="lazy">{% else %}<div class="photo"></div>{% endif %}
+    <span class="name">{{ p.name }}</span>
+    <span class="price">{{ p.price | price }}</span>
+  </a>
+  {% endfor %}
+</div>
+<p class="empty muted" id="empty" hidden>Ничего не нашлось — попробуйте другое слово</p>
+<button class="btn btn-soft ask" onclick="askAI(null, false, '{{ bot_ask_url or '' }}')">💬 Не нашли? Спросите AI-помощника</button>
+{% endblock %}
+{% block script %}
+<script>
+const cards = [...document.querySelectorAll(".card")];
+let category = "";
+function applyFilter() {
+  const query = document.getElementById("search").value.trim().toLowerCase();
+  let shown = 0;
+  for (const card of cards) {
+    const visible = (!category || card.dataset.category === category) && (!query || card.dataset.name.includes(query));
+    card.hidden = !visible;
+    if (visible) shown++;
+  }
+  document.getElementById("empty").hidden = shown > 0;
+}
+document.getElementById("chips").addEventListener("click", (event) => {
+  const chip = event.target.closest(".chip");
+  if (!chip) return;
+  haptic();
+  document.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c === chip));
+  category = chip.dataset.category;
+  applyFilter();
+});
+document.getElementById("search").addEventListener("input", applyFilter);
+if (tg) { tg.BackButton.hide(); tg.MainButton.hide(); }
+</script>
+{% endblock %}
