@@ -1,0 +1,104 @@
+{% extends "sqladmin/layout.html" %}
+{% block content_header %}<h2 class="page-title">Сегодня</h2>{% endblock %}
+{% block content %}
+{% set d = dashboard %}
+{# Контейнер SQLAdmin — row-deck: он делает колонку flex-строкой, поэтому внутри нужен блок на всю ширину #}
+<div class="col-12"><div class="w-100">
+
+  {% for warning in d.warnings %}
+  <div class="alert alert-warning">⚠️ {{ warning }}</div>
+  {% endfor %}
+
+  {# Быстрые действия — то, что делается чаще всего #}
+  <div class="row row-cards mb-3">
+    <div class="col-6 col-md-3"><a class="btn btn-primary w-100 h-100 py-3 text-wrap" href="/admin/add-from-wb">➕ Добавить товар по артикулу WB</a></div>
+    <div class="col-6 col-md-3"><a class="btn w-100 h-100 py-3 text-wrap" href="/admin/channel-post/create">✍️ Написать пост</a></div>
+    <div class="col-6 col-md-3"><a class="btn w-100 h-100 py-3 text-wrap" href="/admin/broadcast/create">📨 Сделать рассылку</a></div>
+    <div class="col-6 col-md-3"><a class="btn w-100 h-100 py-3 text-wrap" href="/admin/discount/create">🎁 Создать промокод</a></div>
+  </div>
+
+  <div class="row row-cards mb-3">
+    {% for title, value, hint in [
+      ("Новые клиенты", d.new_clients_today, "за 7 дней: " ~ d.new_clients_week),
+      ("Сообщения клиентов", d.client_messages_today, "ответов AI: " ~ d.ai_replies_today),
+      ("Сканы QR", d.qr_scans_today, "за 7 дней: " ~ d.qr_scans_week),
+      ("Публикации за 7 дней", d.published_week, "посты и сторис"),
+    ] %}
+    <div class="col-6 col-md-3">
+      <div class="card"><div class="card-body">
+        <div class="subheader">{{ title }}{% if not loop.last %} · сегодня{% endif %}</div>
+        <div class="h1 mb-1">{{ value }}</div>
+        <div class="text-secondary">{{ hint }}</div>
+      </div></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-7">
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Нужно ваше решение</h3></div>
+        <div class="list-group list-group-flush">
+          {% for p in d.failed %}
+          <a class="list-group-item list-group-item-action" href="/admin/channel-post/details/{{ p.id }}">
+            <span class="badge bg-red-lt me-2">ошибка</span>{{ about(p) }}
+            <div class="text-secondary small mt-1">{{ (p.error or p.instagram_error or "")[:160] }}</div>
+          </a>
+          {% endfor %}
+          {% for p in d.drafts %}
+          <a class="list-group-item list-group-item-action" href="/admin/channel-post/edit/{{ p.id }}">
+            <span class="badge bg-yellow-lt me-2">черновик</span>{{ about(p) }}
+            <div class="text-secondary small mt-1">{{ (p.text or "AI ещё пишет…")[:140] }}</div>
+          </a>
+          {% endfor %}
+          {% if not d.failed and not d.drafts %}
+          <div class="list-group-item text-secondary">Всё разобрано 👌 Черновики контент-плана приходят и в Telegram-бот.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if d.scheduled %}
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Запланировано</h3></div>
+        <div class="list-group list-group-flush">
+          {% for p in d.scheduled %}
+          <a class="list-group-item list-group-item-action" href="/admin/channel-post/details/{{ p.id }}">
+            <span class="badge bg-blue-lt me-2">{{ local(p.scheduled_at) }}</span>{{ about(p) }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Последние сообщения клиентов</h3></div>
+        <div class="list-group list-group-flush">
+          {% for message, client in d.latest_messages %}
+          <a class="list-group-item list-group-item-action" href="/admin/client/details/{{ client.id }}">
+            <div class="d-flex justify-content-between">
+              <strong>{{ client }}</strong><span class="text-secondary small">{{ local(message.created_at) }}</span>
+            </div>
+            <div class="text-secondary">{{ message.text[:120] }}</div>
+          </a>
+          {% else %}
+          <div class="list-group-item text-secondary">Пока никто не писал</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Откуда пришли клиенты · 7 дней</h3></div>
+        <div class="list-group list-group-flush">
+          {% for label, count in d.sources_week %}
+          <div class="list-group-item d-flex justify-content-between"><span>{{ label }}</span><strong>{{ count }}</strong></div>
+          {% else %}
+          <div class="list-group-item text-secondary">Новых клиентов не было</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+{% endblock %}
