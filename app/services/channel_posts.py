@@ -13,12 +13,13 @@ from aiogram.types import Message as TgMessage
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.posts import write_post
+from app.ai.posts import RUBRICS, write_post
 from app.config import get_settings
 from app.db import SessionLocal
 from app.instagram import api as instagram
 from app.models import ChannelPost
 from app.services.broadcasts import format_local, utcnow
+from app.services.story_image import story_image
 from app.services.wb_images import CAPTION_LIMIT, product_photo
 
 logger = logging.getLogger(__name__)
@@ -48,20 +49,37 @@ def post_keyboard(post: ChannelPost) -> InlineKeyboardMarkup | None:
     return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
 
 
-def admin_keyboard(post_id: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="📢 Опубликовать", callback_data=f"post:publish:{post_id}")],
-            [
-                InlineKeyboardButton(text="🔄 Переписать", callback_data=f"post:rewrite:{post_id}"),
-                InlineKeyboardButton(text="🗑 Удалить", callback_data=f"post:delete:{post_id}"),
-            ],
-        ]
-    )
+def admin_keyboard(post: ChannelPost) -> InlineKeyboardMarkup:
+    rows = []
+    # Черновик контент-плана: можно выпустить в запланированное время, а не сразу
+    if post.planned_at and post.planned_at > utcnow():
+        rows.append([InlineKeyboardButton(
+            text=f"🕙 Запланировать на {format_local(post.planned_at, '%H:%M')}",
+            callback_data=f"post:schedule:{post.id}",
+        )])
+    rows += [
+        [InlineKeyboardButton(text="📢 Опубликовать сейчас", callback_data=f"post:publish:{post.id}")],
+        [
+            InlineKeyboardButton(text="🔄 Переписать", callback_data=f"post:rewrite:{post.id}"),
+            InlineKeyboardButton(text="🗑 Удалить", callback_data=f"post:delete:{post.id}"),
+        ],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def describe(post: ChannelPost) -> str:
+    """«пост #5» / «сторис #6» — для сообщений админу."""
+    return f"{'сторис' if post.kind == 'story' else 'пост'} #{post.id}"
 
 
 async def _send_post(bot: Bot, chat_id: int | str, post: ChannelPost) -> TgMessage:
     """Пост про товар — фото товара с WB и текст подписью; иначе (или если фото не нашлось) — просто текст."""
+    if post.kind == "story":
+        # Сторис уходит только в Instagram; админу показываем ту же картинку
+        picture = await story_image(post)
+        if picture is not None:
+            return await bot.send_photo(chat_id, BufferedInputFile(picture, f"story-{post.id}.jpg"))
+        return await bot.send_message(chat_id, html.escape(post.text) or "(нет текста)")
     photo = None
     if post.product and post.product.wb_article and len(post.text) <= CAPTION_LIMIT:
         photo = await product_photo(post.product.wb_article)
@@ -86,11 +104,17 @@ async def _notify_admins(bot: Bot, text: str, reply_markup: InlineKeyboardMarkup
 
 async def send_draft_to_admins(bot: Bot, post: ChannelPost) -> None:
     """Черновик в личку админам: так он будет выглядеть в канале, плюс кнопки «Опубликовать» и т. д."""
+    if post.kind == "story":
+        title = f"📝 Черновик сторис #{post.id} для Instagram"
+    else:
+        title = f"📝 Черновик поста #{post.id} для канала и Instagram"
+    if post.rubric in RUBRICS:
+        title += f" · рубрика «{RUBRICS[post.rubric][0]}»"
     for chat_id in get_settings().admin_ids:
         try:
-            await bot.send_message(chat_id, f"📝 Черновик поста #{post.id} для канала:")
+            await bot.send_message(chat_id, title + ":")
             await _send_post(bot, chat_id, post)
-            await bot.send_message(chat_id, "Что делаем?", reply_markup=admin_keyboard(post.id))
+            await bot.send_message(chat_id, "Что делаем?", reply_markup=admin_keyboard(post))
         except TelegramAPIError:
             logger.exception("Не удалось отправить черновик поста %s админу %s", post.id, chat_id)
 
@@ -122,7 +146,7 @@ async def generate(bot: Bot, post_id: int, autopublish: bool = False) -> None:
         await session.commit()
 
     if post.status == "scheduled" and post.scheduled_at > utcnow():
-        await _notify_admins(bot, f"🕒 Пост #{post_id} готов и выйдет в канале {format_local(post.scheduled_at)}.")
+        await _notify_admins(bot, f"🕒 {describe(post).capitalize()} готов и выйдет {format_local(post.scheduled_at)}.")
     elif post.status == "draft":
         await send_draft_to_admins(bot, post)
 
@@ -214,10 +238,35 @@ async def publish_instagram(session: AsyncSession, post: ChannelPost) -> str | N
     return "📸 И в Instagram."
 
 
+async def publish_story(session: AsyncSession, post: ChannelPost) -> bool:
+    """Сторис в Instagram. Итог записывает в базу."""
+    image_url = instagram.story_image_url(post.id)
+    if not get_settings().instagram_enabled or image_url is None or await story_image(post) is None:
+        post.status, post.error = "failed", "Instagram не подключён или нет картинки для сторис"
+        await session.commit()
+        return False
+    try:
+        post.instagram_media_id = await instagram.publish_story(image_url)
+    except (instagram.InstagramError, aiohttp.ClientError, asyncio.TimeoutError) as e:
+        logger.exception("Instagram story %s failed", post.id)
+        post.status, post.error = "failed", str(e)
+        await session.commit()
+        return False
+    post.status, post.error, post.published_at = "published", None, utcnow()
+    await session.commit()
+    return True
+
+
 async def publish_and_report(bot: Bot, post_id: int, statuses: tuple[str, ...]) -> None:
     async with SessionLocal() as session:
         post = await claim(session, post_id, statuses)
         if post is None:
+            return
+        if post.kind == "story":
+            if await publish_story(session, post):
+                await _notify_admins(bot, f"✅ Сторис #{post_id} опубликована в Instagram.")
+            else:
+                await _notify_admins(bot, f"⚠️ Сторис #{post_id} не опубликована: {html.escape(post.error or '')}")
             return
         if await publish(bot, session, post):
             instagram_note = await publish_instagram(session, post)

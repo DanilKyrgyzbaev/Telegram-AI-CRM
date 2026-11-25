@@ -56,6 +56,11 @@ def _account() -> str:
     return get_settings().instagram_account_id
 
 
+def story_image_url(post_id: int) -> str | None:
+    domain = get_settings().domain
+    return f"https://{domain}/media/stories/{post_id}.jpg" if domain else None
+
+
 def product_image_url(product: Product) -> str | None:
     """Публичная ссылка на фото товара с нашего сервера — Instagram скачивает картинку сам."""
     domain = get_settings().domain
@@ -117,9 +122,16 @@ async def reply_to_comment(comment_id: str, text: str) -> None:
 
 async def publish_photo(image_url: str, caption: str) -> str:
     """Публикует пост с фото и возвращает его ID в Instagram."""
-    container = await _request("POST", f"{_account()}/media", params={
-        "image_url": image_url, "caption": caption[:CAPTION_LIMIT],
-    })
+    return await _publish({"image_url": image_url, "caption": caption[:CAPTION_LIMIT]})
+
+
+async def publish_story(image_url: str) -> str:
+    """Публикует сторис из картинки 9:16 и возвращает её ID. Подпись у сторис API не поддерживает."""
+    return await _publish({"image_url": image_url, "media_type": "STORIES"})
+
+
+async def _publish(params: dict) -> str:
+    container = await _request("POST", f"{_account()}/media", params=params)
     # Instagram скачивает и обрабатывает фото не мгновенно — ждём готовности контейнера
     for _ in range(10):
         status = await _request("GET", container["id"], params={"fields": "status_code"})

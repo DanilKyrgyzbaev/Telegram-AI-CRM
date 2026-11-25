@@ -1,4 +1,4 @@
-"""Публичные файлы без ключа API: фото товаров для Instagram и сайта."""
+"""Публичные файлы без ключа API: фото товаров и картинки сторис для Instagram и сайта."""
 
 from collections import OrderedDict
 
@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import Product
+from app.models import ChannelPost, Product
+from app.services.story_image import story_image
 from app.services.wb_images import product_photo
 
 router = APIRouter()
@@ -27,3 +28,13 @@ async def product_image(product_id: int, session: AsyncSession = Depends(get_ses
         if len(_photos) > PHOTOS_LIMIT:
             _photos.popitem(last=False)
     return Response(_photos[product_id], media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@router.get("/media/stories/{post_id}.jpg")
+async def story_picture(post_id: int, session: AsyncSession = Depends(get_session)) -> Response:
+    """Картинка сторис: Instagram скачивает её при публикации."""
+    post = await session.get(ChannelPost, post_id)
+    picture = await story_image(post) if post and post.kind == "story" else None
+    if picture is None:
+        raise HTTPException(status_code=404)
+    return Response(picture, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})

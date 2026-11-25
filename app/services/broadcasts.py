@@ -41,9 +41,9 @@ def local_tz() -> ZoneInfo:
     return ZoneInfo(get_settings().timezone)
 
 
-def format_local(value: datetime) -> str:
+def format_local(value: datetime, fmt: str = "%d.%m.%Y %H:%M") -> str:
     """Время из базы (UTC) → строка в часовом поясе админа."""
-    return value.replace(tzinfo=timezone.utc).astimezone(local_tz()).strftime("%d.%m.%Y %H:%M")
+    return value.replace(tzinfo=timezone.utc).astimezone(local_tz()).strftime(fmt)
 
 
 def recipients_query(source: str | None, client_id: int | None = None) -> Select[tuple[Client]]:

@@ -156,6 +156,12 @@ class ChannelPost(Base):
     __tablename__ = "channel_posts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # post — пост в канал и Instagram; story — сторис только в Instagram (картинка 9:16 с текстом)
+    kind: Mapped[str] = mapped_column(String(16), default="post", server_default="post")
+    # Рубрика ежедневного контент-плана (RUBRICS в app/ai/posts.py); пусто — пост создан вручную
+    rubric: Mapped[str | None] = mapped_column(String(32))
+    # Когда (UTC) выпустить по контент-плану: админ подтверждает черновик кнопкой «Запланировать»
+    planned_at: Mapped[datetime | None]
     # Задание для AI: «пост про скидки чёрной пятницы». Пусто — пост про товар или промокод ниже
     topic: Mapped[str] = mapped_column(Text, default="", server_default="")
     product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id", ondelete="SET NULL"))

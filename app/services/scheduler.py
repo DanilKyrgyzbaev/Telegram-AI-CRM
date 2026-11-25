@@ -10,6 +10,7 @@ from app.instagram.api import refresh_token_if_needed
 from app.models import Broadcast, ChannelPost
 from app.services.broadcasts import STALE_AFTER, run_and_report, utcnow
 from app.services.channel_posts import publish_and_report
+from app.services.content_plan import run_if_due as run_content_plan_if_due
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,8 @@ async def run_scheduler(bot: Bot) -> None:
             # Посты раньше рассылок: долгая рассылка не должна задерживать публикацию
             await _publish_due_posts(bot)
             await _run_due_broadcasts(bot)
+            # Раз в день утром — черновики поста и сторис по контент-плану
+            await run_content_plan_if_due(bot)
             # Сама проверяет, пора ли (раз в неделю): токен Instagram живёт 60 дней
             await refresh_token_if_needed()
         except Exception:
