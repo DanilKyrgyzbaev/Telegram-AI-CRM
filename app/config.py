@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     require_subscription: bool = False
     # True — посты, которые AI написал сам (новый товар, промокод), публикуются в канал без подтверждения
     channel_autopublish: bool = False
+    # Ежедневный контент-план: утром AI готовит пост (канал + Instagram) и сторис (Instagram),
+    # черновики приходят админам на одобрение. Время — в часовом поясе TIMEZONE, формат ЧЧ:ММ
+    content_plan_enabled: bool = False
+    content_drafts_time: str = "08:00"
+    content_post_time: str = "10:00"
+    content_story_time: str = "18:00"
     # Название бренда для постов в канал и ссылка на все его товары на WB (кнопка под постом)
     shop_name: str = ""
     shop_url: str = ""

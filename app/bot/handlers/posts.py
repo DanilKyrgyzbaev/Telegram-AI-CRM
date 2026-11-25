@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models import ChannelPost
-from app.services.channel_posts import publish_and_report, start_generation
+from app.services.broadcasts import format_local, utcnow
+from app.services.channel_posts import describe, publish_and_report, start_generation
+from app.services.content_plan import create_daily_drafts
 
 router = Router()
 # Все хендлеры этого роутера — только для админов
@@ -29,6 +31,26 @@ async def post_command(message: Message, command: CommandObject, session: AsyncS
     await session.commit()
     await message.answer(f"✍️ AI пишет пост #{post.id}, пришлю черновик через несколько секунд.")
     start_generation(post.id)
+
+
+@router.message(Command("plan"))
+async def plan_command(message: Message) -> None:
+    # /plan — сразу подготовить пост и сторис на сегодня по контент-плану (не дожидаясь утра)
+    await message.answer("✍️ Готовлю пост и сторис на сегодня, черновики придут сюда через минуту.")
+    if not await create_daily_drafts(message.bot):
+        await message.answer("Нет активных товаров с артикулом WB — не из чего делать пост.")
+
+
+@router.callback_query(F.data.startswith("post:schedule:"))
+async def post_schedule(callback: CallbackQuery, session: AsyncSession) -> None:
+    post = await session.get(ChannelPost, int(callback.data.rsplit(":", 1)[1]))
+    if post is None or post.status not in ("draft", "failed") or not post.planned_at or post.planned_at <= utcnow():
+        await callback.answer("Время уже прошло — нажмите «Опубликовать сейчас».", show_alert=True)
+        return
+    post.status, post.scheduled_at = "scheduled", post.planned_at
+    await session.commit()
+    await callback.message.edit_text(f"🕙 {describe(post).capitalize()} выйдет {format_local(post.planned_at, '%d.%m в %H:%M')}.")
+    await callback.answer("Запланировано")
 
 
 @router.callback_query(F.data.startswith("post:publish:"))

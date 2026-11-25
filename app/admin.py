@@ -17,6 +17,7 @@ from app.config import get_settings
 from app.db import SessionLocal, engine
 from app.models import Broadcast, Campaign, ChannelPost, Client, Discount, Message, Product, Purchase
 from app.services.broadcasts import format_local, local_tz, utcnow
+from app.ai.posts import RUBRICS
 from app.services.channel_posts import STATUS_LABELS, create_auto_post, start_generation
 from app.services.promo import promo_status
 from app.services.qr import product_link, qr_png
@@ -277,11 +278,11 @@ def _audience(broadcast: Broadcast) -> str:
 
 
 class ChannelPostAdmin(ModelView, model=ChannelPost):
-    name = "Пост в канал"
-    name_plural = "Посты в канал"
+    name = "Пост"
+    name_plural = "Посты и сторис"
     icon = "fa-solid fa-newspaper"
     column_list = [
-        ChannelPost.id, ChannelPost.status, "about", ChannelPost.text,
+        ChannelPost.id, ChannelPost.kind, ChannelPost.status, "about", ChannelPost.text,
         ChannelPost.scheduled_at, ChannelPost.published_at,
     ]
     column_labels = {
@@ -290,17 +291,20 @@ class ChannelPostAdmin(ModelView, model=ChannelPost):
         ChannelPost.scheduled_at: "Публикация", ChannelPost.published_at: "Опубликован",
         ChannelPost.error: "Ошибка", ChannelPost.message_id: "ID сообщения в канале",
         ChannelPost.instagram_media_id: "ID поста в Instagram", ChannelPost.instagram_error: "Ошибка Instagram",
+        ChannelPost.kind: "Тип", ChannelPost.rubric: "Рубрика", ChannelPost.planned_at: "По плану",
     }
     column_default_sort = (ChannelPost.id, True)
     column_formatters = {
         ChannelPost.status: lambda m, a: STATUS_LABELS.get(m.status, m.status),
-        "about": lambda m, a: m.topic or (f"🆕 {m.product}" if m.product else f"🎁 {m.discount.code}" if m.discount else "—"),
+        ChannelPost.kind: lambda m, a: "📱 сторис" if m.kind == "story" else "📝 пост",
+        "about": lambda m, a: (f"📅 {RUBRICS[m.rubric][0]}: {m.product}" if m.rubric in RUBRICS else None) or m.topic or (f"🆕 {m.product}" if m.product else f"🎁 {m.discount.code}" if m.discount else "—"),
         ChannelPost.text: lambda m, a: m.text if len(m.text) <= 100 else m.text[:100] + "…",
         ChannelPost.scheduled_at: lambda m, a: _local(m, "scheduled_at"),
         ChannelPost.published_at: lambda m, a: _local(m, "published_at"),
     }
     column_details_list = [
-        ChannelPost.id, ChannelPost.status, ChannelPost.topic, ChannelPost.product, ChannelPost.discount,
+        ChannelPost.id, ChannelPost.kind, ChannelPost.rubric, ChannelPost.status, ChannelPost.topic,
+        ChannelPost.product, ChannelPost.discount, ChannelPost.planned_at,
         ChannelPost.text, ChannelPost.scheduled_at, ChannelPost.published_at, ChannelPost.message_id, ChannelPost.error,
         ChannelPost.instagram_media_id, ChannelPost.instagram_error,
     ]
