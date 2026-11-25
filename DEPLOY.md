@@ -52,7 +52,7 @@ nano .env
 | `BOT_TOKEN` | Токен бота (после `/revoke` в @BotFather — новый) |
 | `ANTHROPIC_API_KEY` | Ключ Claude API (лучше создать отдельный для сервера) |
 | `ADMIN_IDS` | `[761517835]` |
-| `CHANNEL_URL`, `CHANNEL_ID` | `https://t.me/Miss_Way`, `@Miss_Way` |
+| `CHANNEL_URL`, `CHANNEL_ID` | `https://t.me/moodelle_store`, `-1003819200732` (числовой ID не ломается при смене ссылки канала) |
 | `TIMEZONE` | Ваш часовой пояс, например `Europe/Moscow` |
 | `POSTGRES_PASSWORD` | Длинный случайный пароль: `openssl rand -hex 16` |
 | `ADMIN_PASSWORD` | Пароль входа в админку: `openssl rand -base64 12` |
