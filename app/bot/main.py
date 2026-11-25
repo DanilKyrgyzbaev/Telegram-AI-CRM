@@ -3,7 +3,7 @@ import logging
 
 from aiogram import Bot, Dispatcher
 
-from app.bot.handlers import broadcast, channel, chat, posts, start
+from app.bot.handlers import broadcast, channel, chat, posts, size, start
 from app.bot.keyboards import catalog_menu_button
 from app.bot.middlewares.db import DbSessionMiddleware
 from app.config import get_settings
@@ -16,7 +16,7 @@ async def main() -> None:
     dp = Dispatcher()
     dp.update.middleware(DbSessionMiddleware())
     # Порядок важен: команды раньше общего текстового хендлера AI-менеджера
-    dp.include_routers(start.router, broadcast.router, posts.router, channel.router, chat.router)
+    dp.include_routers(start.router, broadcast.router, posts.router, channel.router, size.router, chat.router)
 
     # Кнопка «Каталог» слева от поля ввода во всех чатах с ботом открывает Mini App
     if menu_button := catalog_menu_button():

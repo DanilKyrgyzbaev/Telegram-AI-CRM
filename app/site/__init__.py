@@ -18,6 +18,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai import manager
+from app.bot.keyboards import height_keyboard
 from app.config import get_settings
 from app.db import get_session
 from app.models import Product
@@ -206,7 +207,10 @@ async def app_ask(question: AppQuestion, session: AsyncSession = Depends(get_ses
         await manager.note_product_interest(session, crm_client, product, question.about_size)
     bot = Bot(token)
     try:
-        await bot.send_message(user.id, manager.product_question_text(product, question.about_size))
+        await bot.send_message(
+            user.id, manager.product_question_text(product, question.about_size),
+            reply_markup=height_keyboard() if product is not None and question.about_size else None,
+        )
     except TelegramAPIError:
         # Клиент ещё не запускал бота или заблокировал его — каталог откроет чат ссылкой
         logger.info("Mini App: не удалось написать клиенту %s", user.id)

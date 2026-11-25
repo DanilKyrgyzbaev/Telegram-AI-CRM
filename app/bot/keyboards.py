@@ -1,9 +1,40 @@
 from collections.abc import Sequence
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp, WebAppInfo
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    MenuButtonWebApp,
+    ReplyKeyboardMarkup,
+    WebAppInfo,
+)
 
 from app.config import get_settings
 from app.models import Product
+
+
+# Подбор размера: ответы-кнопки под полем ввода. Нажатие отправляет сообщение от имени клиента.
+# Подписи уникальны (см / кг), по ним бот понимает, на какой шаг ответили
+HEIGHTS = ("до 160 см", "160–165 см", "166–170 см", "171–175 см", "176–180 см", "181–185 см", "выше 185 см")
+WEIGHTS = ("до 50 кг", "50–55 кг", "56–60 кг", "61–65 кг", "66–70 кг", "71–80 кг", "81–90 кг", "больше 90 кг")
+FITS = ("По фигуре", "Свободно", "Оверсайз")
+
+
+def _reply_keyboard(options: tuple[str, ...], per_row: int, placeholder: str) -> ReplyKeyboardMarkup:
+    rows = [[KeyboardButton(text=o) for o in options[i:i + per_row]] for i in range(0, len(options), per_row)]
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True, input_field_placeholder=placeholder)
+
+
+def height_keyboard() -> ReplyKeyboardMarkup:
+    return _reply_keyboard(HEIGHTS, 3, "Или напишите рост")
+
+
+def weight_keyboard() -> ReplyKeyboardMarkup:
+    return _reply_keyboard(WEIGHTS, 4, "Или напишите вес")
+
+
+def fit_keyboard() -> ReplyKeyboardMarkup:
+    return _reply_keyboard(FITS, 3, "Или опишите, как любите носить")
 
 
 def catalog_url() -> str | None:
