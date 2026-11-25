@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from sqladmin import Admin, BaseView, ModelView, action, expose
-from sqladmin.authentication import AuthenticationBackend
+from sqladmin.authentication import AuthenticationBackend, login_required
 from sqladmin.filters import AllUniqueStringValuesFilter, BooleanFilter, OperationColumnFilter
 from sqladmin.i18n import I18nConfig
 from sqlalchemy import select, update
@@ -23,6 +23,7 @@ from app.db import SessionLocal, engine
 from app.models import Broadcast, Campaign, ChannelPost, Client, Discount, Message, Product, Purchase
 from app.services.broadcasts import format_local, local_tz, utcnow
 from app.services.channel_posts import STATUS_LABELS, create_auto_post, start_generation
+from app.services.dashboard import build as build_dashboard
 from app.services.promo import promo_status
 from app.services.qr import product_link, qr_png
 from app.services.wb_cards import fetch_card, refresh_product
@@ -48,6 +49,19 @@ class AdminAuth(AuthenticationBackend):
 
     async def authenticate(self, request: Request) -> bool:
         return bool(request.session.get("admin"))
+
+
+def post_about(post: ChannelPost) -> str:
+    """О чём пост — коротко, для списков: «📱 сторис · 📅 Образ дня: Брюки палаццо»."""
+    if post.rubric in RUBRICS:
+        about = f"📅 {RUBRICS[post.rubric][0]}: {post.product}"
+    elif post.topic:
+        about = post.topic
+    elif post.product:
+        about = f"🆕 {post.product}"
+    else:
+        about = f"🎁 {post.discount.code}" if post.discount else "—"
+    return f"📱 сторис · {post.product}" if post.kind == "story" else about
 
 
 def _local(model: Any, attr: str) -> str:
@@ -377,7 +391,7 @@ class ChannelPostAdmin(ModelView, model=ChannelPost):
     column_formatters = {
         ChannelPost.status: lambda m, a: STATUS_LABELS.get(m.status, m.status),
         ChannelPost.kind: lambda m, a: "📱 сторис" if m.kind == "story" else "📝 пост",
-        "about": lambda m, a: (f"📅 {RUBRICS[m.rubric][0]}: {m.product}" if m.rubric in RUBRICS else None) or m.topic or (f"🆕 {m.product}" if m.product else f"🎁 {m.discount.code}" if m.discount else "—"),
+        "about": lambda m, a: post_about(m),
         ChannelPost.text: lambda m, a: m.text if len(m.text) <= 100 else m.text[:100] + "…",
         ChannelPost.scheduled_at: lambda m, a: _local(m, "scheduled_at"),
         ChannelPost.published_at: lambda m, a: _local(m, "published_at"),
@@ -456,8 +470,20 @@ class ChannelPostAdmin(ModelView, model=ChannelPost):
         return response
 
 
+class CrmAdmin(Admin):
+    @login_required
+    async def index(self, request: Request) -> Response:
+        """Главная «Сегодня»: цифры, черновики на одобрение, быстрые действия."""
+        async with SessionLocal() as session:
+            dashboard = await build_dashboard(session)
+        return await self.templates.TemplateResponse(
+            request, "dashboard.html",
+            {"dashboard": dashboard, "about": post_about, "local": lambda value: format_local(value, "%d.%m %H:%M")},
+        )
+
+
 def setup_admin(app: FastAPI) -> None:
-    admin = Admin(
+    admin = CrmAdmin(
         app,
         engine,
         title=f"{get_settings().shop_name or 'Telegram AI'} CRM",
