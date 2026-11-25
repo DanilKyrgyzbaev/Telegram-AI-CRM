@@ -1,0 +1,16 @@
+{% extends "legal.html" %}
+{% block title %}Удаление данных — {{ shop }}{% endblock %}
+{% block description %}Как удалить свои данные из CRM магазина {{ shop }}.{% endblock %}
+{% block legal %}
+<h1>Удаление данных</h1>
+<p>Чтобы удалить ваши данные из CRM {{ shop }}, отправьте сообщение <b>«удалите мои данные»</b> любым способом:</p>
+<ul>
+  {% if bot_url %}<li>в <a href="{{ bot_url }}">Telegram-бот магазина</a>;</li>{% endif %}
+  {% if instagram_url %}<li>в Instagram Direct <a href="{{ instagram_url }}">{{ shop }}</a>;</li>{% endif %}
+  {% if contact_email %}<li>на почту <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</li>{% endif %}
+</ul>
+<p>В течение 30 дней мы удалим ваш профиль, историю переписки и покупок и подтвердим это ответным сообщением.</p>
+<p>Если вы входили через Instagram или Facebook, доступ магазина можно отозвать и самостоятельно:
+Instagram → Настройки → «Приложения и сайты».</p>
+<p>Подробнее о данных — в <a href="/privacy">политике конфиденциальности</a>.</p>
+{% endblock %}

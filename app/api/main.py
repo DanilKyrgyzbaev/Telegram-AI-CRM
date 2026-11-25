@@ -13,10 +13,10 @@ setup_admin(app)
 for router in (clients.router, products.router, stats.router, broadcasts.router, promo.router):
     app.include_router(router, prefix="/api", dependencies=[Depends(require_api_key)])
 
-# Без ключа API: Meta сама обращается к webhook и скачивает фото, страница политики — для проверки приложения
+# Без ключа API: Meta сама обращается к webhook и скачивает фото
 app.include_router(public.router)
 app.include_router(instagram_webhook.router)
-# Сайт-каталог для покупателей: главная страница и карточки товаров
+# Сайт для покупателей: каталог, карточки товаров, политика конфиденциальности
 app.include_router(site_router)
 
 
