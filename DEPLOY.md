@@ -33,7 +33,7 @@ ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw --force enable
 С вашего Mac (из папки проекта):
 
 ```bash
-rsync -av --exclude '.venv*' --exclude '.idea' --exclude '__pycache__' --exclude '.env' \
+rsync -av --exclude '.venv*' --exclude '.idea' --exclude '__pycache__' --exclude '.env' --exclude 'ACCESS.md' \
   "./" root@IP_СЕРВЕРА:/opt/telegram-ai-crm/
 ```
 
