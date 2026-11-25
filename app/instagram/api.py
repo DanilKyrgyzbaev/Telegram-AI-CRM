@@ -133,7 +133,13 @@ async def publish_story(image_url: str) -> str:
 
 
 async def _publish(params: dict) -> str:
-    container = await _request("POST", f"{_account()}/media", params=params)
+    try:
+        container = await _request("POST", f"{_account()}/media", params=params)
+    except InstagramError:
+        # Meta иногда разово отвечает ошибкой (у сторис — «Only photo or video…»), не скачав картинку;
+        # повтор через несколько секунд обычно проходит
+        await asyncio.sleep(RETRY_DELAY)
+        container = await _request("POST", f"{_account()}/media", params=params)
     # Instagram скачивает и обрабатывает фото не мгновенно — ждём готовности контейнера
     for _ in range(10):
         status = await _request("GET", container["id"], params={"fields": "status_code"})
