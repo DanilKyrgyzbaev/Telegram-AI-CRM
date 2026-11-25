@@ -381,7 +381,7 @@ def setup_admin(app: FastAPI) -> None:
         logo_url="/logo-light.png",
         logo_width=150,
         logo_height=56,
-        favicon_url="/favicon.png",
+        favicon_url="/favicon.png?v=2",
         authentication_backend=AdminAuth(secret_key=get_settings().secret_key),
         i18n_config=I18nConfig(default_locale="ru"),
     )

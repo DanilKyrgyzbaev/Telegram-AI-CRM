@@ -14,8 +14,6 @@ SITE_STATIC = BRAND.parent / "app" / "site" / "static"
 INK, CREAM, WHITE = (29, 26, 23), (246, 242, 236), (255, 255, 255)
 # Пиксели светлее этого порога считаем фоном; переход к чёрному сохраняет сглаживание краёв
 BACKGROUND_LEVEL = 40
-# «oo» с дугой — фирменная деталь логотипа для значка вкладки (координаты в обрезанном logo.png)
-OO_BOX = (224, 0, 470, 262)
 
 
 def logo_alpha() -> Image.Image:
@@ -41,11 +39,12 @@ def centered(alpha: Image.Image, size: int, background, color, width_ratio: floa
     return canvas
 
 
-def round_icon(alpha: Image.Image, size: int) -> Image.Image:
-    icon = centered(alpha, size, INK, CREAM, 0.6)
-    circle = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(circle).ellipse((0, 0, size, size), fill=255)
-    icon.putalpha(circle)
+def tab_icon(alpha: Image.Image, size: int) -> Image.Image:
+    """Значок вкладки: слово на тёмном квадрате со скруглёнными углами."""
+    icon = centered(alpha, size, INK, CREAM, 0.92)
+    corners = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(corners).rounded_rectangle((0, 0, size, size), radius=size // 5, fill=255)
+    icon.putalpha(corners)
     return icon
 
 
@@ -60,16 +59,9 @@ def main() -> None:
     centered(alpha, 1080, WHITE, INK, 0.78).convert("RGB").save(AVATARS / "logo-light.png")
     centered(alpha, 1080, INK, CREAM, 0.78).convert("RGB").save(AVATARS / "logo-dark.png")
 
-    oo = alpha.crop(OO_BOX)
-    # Срезаем засечки соседних букв m и d у базовой линии
-    pixels = oo.load()
-    for x in range(oo.width):
-        for y in range(200, oo.height):
-            if x < 6 or x > oo.width - 4:
-                pixels[x, y] = 0
-    oo = oo.crop(oo.getbbox())
-    round_icon(oo, 512).save(AVATARS / "favicon.png")
-    round_icon(oo, 180).save(AVATARS / "apple-touch-icon.png")
+    tab_icon(alpha, 512).save(AVATARS / "favicon.png")
+    # iPhone сам скругляет углы иконки — отдаём сплошной квадрат
+    centered(alpha, 180, INK, CREAM, 0.86).convert("RGB").save(AVATARS / "apple-touch-icon.png")
 
     for source in (BRAND / "logo.png", BRAND / "logo-light.png", AVATARS / "favicon.png", AVATARS / "apple-touch-icon.png"):
         shutil.copy(source, SITE_STATIC / source.name)
