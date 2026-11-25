@@ -21,7 +21,7 @@ h2 { font-size: 18px; margin: 28px 0 12px; }
 <div class="actions">
   {# В Telegram «Купить» — системная кнопка внизу экрана; вне Telegram — обычная #}
   {% if product.wb_url %}<button class="btn" id="buy" onclick="openExternal('{{ product.wb_url }}')">🛒 Купить на Wildberries</button>{% endif %}
-  {% if bot_ask_url %}<button class="btn btn-soft" onclick="openTelegram('{{ bot_ask_url }}')">💬 Спросить AI про размер и посадку</button>{% endif %}
+  <button class="btn btn-soft" onclick="askAI({{ product.id }}, true, '{{ bot_ask_url or '' }}')">💬 Спросить AI про размер и посадку</button>
 </div>
 {% if similar %}
 <h2>Похожие модели</h2>

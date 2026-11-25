@@ -32,9 +32,7 @@
   {% endfor %}
 </div>
 <p class="empty muted" id="empty" hidden>Ничего не нашлось — попробуйте другое слово</p>
-{% if bot_ask_url %}
-<button class="btn btn-soft ask" onclick="openTelegram('{{ bot_ask_url }}')">💬 Не нашли? Спросите AI-помощника</button>
-{% endif %}
+<button class="btn btn-soft ask" onclick="askAI(null, false, '{{ bot_ask_url or '' }}')">💬 Не нашли? Спросите AI-помощника</button>
 {% endblock %}
 {% block script %}
 <script>

@@ -2,19 +2,27 @@
 
 import io
 import logging
+from datetime import timedelta
 from pathlib import Path
 
 import segno
+from aiogram import Bot
+from aiogram.exceptions import TelegramAPIError
+from aiogram.utils.web_app import safe_parse_webapp_init_data
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai import manager
 from app.config import get_settings
 from app.db import get_session
 from app.models import Product
+from app.services.broadcasts import utcnow
+from app.services.clients import get_or_create_client
 from app.services.qr import APP_START_PARAM, ASK_START_PREFIX, SIZE_START_PREFIX, bot_username
 
 logger = logging.getLogger(__name__)
@@ -29,6 +37,8 @@ QR_COLOR = "#1d1a17"
 # Метка кампании для ссылки на бота: клиенты с сайта видны в CRM с источником «site»
 BOT_START_PARAM = "site"
 SIMILAR_LIMIT = 4
+# Подпись Telegram у данных Mini App старше суток не принимаем — защита от повторного использования
+INIT_DATA_MAX_AGE = timedelta(days=1)
 # Дата текущей редакции политики конфиденциальности — менять при правке текста
 PRIVACY_UPDATED = "25 ноября 2026 г."
 
@@ -167,3 +177,40 @@ def _brand_file(name: str):
 
 for _name in BRAND_FILES:
     router.add_api_route(f"/{_name}", _brand_file(_name), methods=["GET"], include_in_schema=False)
+
+
+class AppQuestion(BaseModel):
+    # initData от Telegram — подписанные Telegram данные о том, кто открыл Mini App
+    init_data: str
+    product_id: int | None = None
+    about_size: bool = False
+
+
+@router.post("/app/ask", include_in_schema=False)
+async def app_ask(question: AppQuestion, session: AsyncSession = Depends(get_session)) -> dict[str, bool]:
+    """«Спросить AI» в каталоге: бот сам пишет клиенту в чат, без ссылки и сообщения «/start»."""
+    token = get_settings().bot_token
+    try:
+        data = safe_parse_webapp_init_data(token, question.init_data)
+    except ValueError:
+        raise HTTPException(status_code=403)
+    if data.user is None or utcnow() - data.auth_date.replace(tzinfo=None) > INIT_DATA_MAX_AGE:
+        raise HTTPException(status_code=403)
+    user = data.user
+    product = await session.get(Product, question.product_id) if question.product_id else None
+    crm_client = await get_or_create_client(
+        session, telegram_id=user.id, full_name=" ".join(filter(None, [user.first_name, user.last_name])),
+        username=user.username, source=APP_START_PARAM,
+    )
+    if product is not None:
+        await manager.note_product_interest(session, crm_client, product, question.about_size)
+    bot = Bot(token)
+    try:
+        await bot.send_message(user.id, manager.product_question_text(product, question.about_size))
+    except TelegramAPIError:
+        # Клиент ещё не запускал бота или заблокировал его — каталог откроет чат ссылкой
+        logger.info("Mini App: не удалось написать клиенту %s", user.id)
+        return {"ok": False}
+    finally:
+        await bot.session.close()
+    return {"ok": True}

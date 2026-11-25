@@ -35,6 +35,25 @@ function haptic() { if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChan
 // Ссылки на Wildberries открываем во внешнем браузере / приложении WB, а не внутри Telegram
 function openExternal(url) { if (tg) tg.openLink(url); else window.open(url, "_blank"); }
 function openTelegram(url) { if (tg) tg.openTelegramLink(url); else window.open(url, "_blank"); }
+// «Спросить AI»: бот сам пишет клиенту в чат, а каталог закрывается. Не вышло (нет данных Telegram,
+// клиент не запускал бота) — открываем чат ссылкой, как раньше
+async function askAI(productId, aboutSize, fallbackUrl) {
+  haptic();
+  if (tg && tg.initData) {
+    try {
+      const response = await fetch("/app/ask", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ init_data: tg.initData, product_id: productId, about_size: aboutSize }),
+      });
+      if (response.ok && (await response.json()).ok) {
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+        tg.close();
+        return;
+      }
+    } catch (error) { /* сеть недоступна — откроем чат ссылкой */ }
+  }
+  if (fallbackUrl) openTelegram(fallbackUrl);
+}
 </script>
 {% block script %}{% endblock %}
 </body>

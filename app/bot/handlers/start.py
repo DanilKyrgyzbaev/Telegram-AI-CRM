@@ -46,13 +46,7 @@ async def start(message: Message, command: CommandObject, session: AsyncSession)
     if (question := parse_product_question(command.args)) and (asked := await session.get(Product, question[1])):
         about_size = question[0] == "size"
         await manager.note_product_interest(session, crm_client, asked, about_size)
-        if about_size:
-            text = (f"Подберём размер для «{asked.name}» 📏\n"
-                    "Напишите рост, вес и как любите носить — свободно или по фигуре.")
-        else:
-            text = (f"Что хотите узнать про «{asked.name}»? 🙂\n"
-                    "Например: какой размер взять при моём росте, как сидит, с чем носить.")
-        await message.answer(text)
+        await message.answer(manager.product_question_text(asked, about_size))
         return
 
     product = None

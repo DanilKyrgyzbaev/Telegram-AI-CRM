@@ -114,6 +114,17 @@ async def greet_purchase(
     return await _generate(session, crm_client, fallback)
 
 
+def product_question_text(product: Product | None, about_size: bool) -> str:
+    """Первое сообщение бота, когда клиент пришёл спросить о товаре (или просто открыл помощь из каталога)."""
+    if product is None:
+        return "Напишите, что ищете — подберу модель и размер 🙂"
+    if about_size:
+        return (f"Подберём размер для «{product.name}» 📏\n"
+                "Напишите рост, вес и как любите носить — свободно или по фигуре.")
+    return (f"Что хотите узнать про «{product.name}»? 🙂\n"
+            "Например: какой размер взять при моём росте, как сидит, с чем носить.")
+
+
 async def note_product_interest(session: AsyncSession, crm_client: Client, product: Product, about_size: bool) -> None:
     """Клиент пришёл спросить о товаре (из каталога или с сайта): AI поймёт следующий вопрос в контексте товара."""
     goal = "узнать, какой размер ему подойдёт" if about_size else "задать о нём вопрос"
