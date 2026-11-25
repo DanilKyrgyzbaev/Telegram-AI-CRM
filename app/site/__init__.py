@@ -22,6 +22,8 @@ FAVICON = Path(__file__).parent / "static" / "favicon.svg"
 # Метка кампании для ссылки на бота: клиенты с сайта видны в CRM с источником «site»
 BOT_START_PARAM = "site"
 SIMILAR_LIMIT = 4
+# Дата текущей редакции политики конфиденциальности — менять при правке текста
+PRIVACY_UPDATED = "25 ноября 2026 г."
 
 
 def _price(value) -> str:
@@ -48,6 +50,8 @@ async def _context(request: Request, **extra) -> dict:
         "shop_url": settings.shop_url,
         "channel_url": settings.channel_url,
         "instagram_url": settings.instagram_url,
+        "owner": settings.shop_legal_name or settings.shop_name or "Магазин",
+        "contact_email": settings.contact_email,
         "bot_url": await _bot_url(),
         **extra,
     }
@@ -87,6 +91,16 @@ async def product_page(
     return templates.TemplateResponse(
         request, "product.html", await _context(request, product=product, similar=similar)
     )
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "privacy.html", await _context(request, updated=PRIVACY_UPDATED))
+
+
+@router.get("/data-deletion", response_class=HTMLResponse)
+async def data_deletion(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "data_deletion.html", await _context(request))
 
 
 @router.get("/favicon.svg", include_in_schema=False)

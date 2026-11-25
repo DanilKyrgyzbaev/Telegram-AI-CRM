@@ -1,4 +1,18 @@
-# Caddy сам получает и продлевает HTTPS-сертификат Let's Encrypt для домена из .env (DOMAIN)
+# Caddy сам получает и продлевает HTTPS-сертификаты Let's Encrypt для доменов из .env
 {$DOMAIN} {
 	reverse_proxy api:8000
+}
+
+# www и прежние адреса (OLD_DOMAINS через пробел) ведут на основной домен.
+# Webhook и фото для Meta отдаём и по старому адресу: Meta не переходит по редиректам
+www.{$DOMAIN} {$OLD_DOMAINS} {
+	handle /instagram/* {
+		reverse_proxy api:8000
+	}
+	handle /media/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		redir https://{$DOMAIN}{uri} permanent
+	}
 }
