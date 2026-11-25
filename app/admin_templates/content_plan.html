@@ -1,0 +1,90 @@
+{% extends "sqladmin/layout.html" %}
+{% block content_header %}<h2 class="page-title">Контент-план</h2>{% endblock %}
+{% block content %}
+{% set badges = {"generating": "bg-secondary-lt", "draft": "bg-yellow-lt", "scheduled": "bg-blue-lt",
+                 "publishing": "bg-blue-lt", "published": "bg-green-lt", "failed": "bg-red-lt"} %}
+{# Контейнер SQLAdmin — row-deck: он делает колонку flex-строкой, поэтому внутри нужен блок на всю ширину #}
+<div class="col-12"><div class="w-100">
+
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <a class="btn" href="?week={{ prev_week }}">← Пред.</a>
+    <strong class="mx-2">{{ monday.strftime("%d.%m") }} — {{ sunday.strftime("%d.%m.%Y") }}</strong>
+    <a class="btn" href="?week={{ next_week }}">След. →</a>
+    {% if monday != this_week %}<a class="btn btn-ghost-primary" href="?week={{ this_week }}">Эта неделя</a>{% endif %}
+  </div>
+
+  <div class="text-secondary mb-3">
+    {% if auto %}
+    Каждый день в {{ drafts_time }} AI готовит пост ({{ post_time }}) и сторис ({{ story_time }}) и присылает черновики в бот.
+    Одобрите их там или здесь — кнопкой «Запланировать».
+    {% else %}
+    Автоматический контент-план выключен (CONTENT_PLAN_ENABLED) — готовьте черновики кнопкой «Подготовить» у нужного дня.
+    {% endif %}
+  </div>
+
+  <div class="row row-cards">
+    {% for d in days %}
+    <div class="col-12">
+      <div class="card{% if d.is_today %} border-primary{% endif %}{% if d.is_past %} opacity-75{% endif %}">
+        <div class="card-body">
+          <div class="row g-3 align-items-start">
+            <div class="col-12 col-md-3">
+              <div class="h3 mb-1">
+                {{ ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"][d.day.weekday()] }}, {{ d.day.strftime("%d.%m") }}
+                {% if d.is_today %}<span class="badge bg-primary text-white ms-1">сегодня</span>{% endif %}
+              </div>
+              <div class="text-secondary">📅 {{ d.rubric }}</div>
+            </div>
+            <div class="col-12 col-md-9">
+              <div class="list-group list-group-flush">
+                {% for p in d.posts %}
+                {% set moment = p.published_at or p.scheduled_at or p.planned_at %}
+                <div class="list-group-item px-0">
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="badge {{ badges.get(p.status, '') }}">{{ status_labels.get(p.status, p.status) }}</span>
+                    {% if moment %}<span class="text-secondary">{{ time(moment) }}</span>{% endif %}
+                    <a href="/admin/channel-post/details/{{ p.id }}">{{ about(p) }}</a>
+                    <span class="ms-auto d-flex gap-2">
+                      {% if p.status in ("draft", "failed") %}
+                        {% if p.text and p.planned_at and p.planned_at > now %}
+                        <form method="POST" class="m-0">
+                          <input type="hidden" name="action" value="schedule">
+                          <input type="hidden" name="post_id" value="{{ p.id }}">
+                          <button class="btn btn-sm btn-primary" type="submit">🕙 Запланировать на {{ time(p.planned_at) }}</button>
+                        </form>
+                        {% endif %}
+                        <a class="btn btn-sm" href="/admin/channel-post/edit/{{ p.id }}">✏️ Изменить</a>
+                      {% endif %}
+                    </span>
+                  </div>
+                  {% if p.status == "failed" %}
+                  <div class="text-danger small mt-1">{{ (p.error or p.instagram_error or "")[:160] }}</div>
+                  {% elif p.text and p.status != "published" %}
+                  <div class="text-secondary small mt-1">{{ p.text|striptags|truncate(160) }}</div>
+                  {% endif %}
+                </div>
+                {% endfor %}
+                {% if d.can_prepare %}
+                <div class="list-group-item px-0 d-flex flex-wrap align-items-center gap-2">
+                  <span class="text-secondary">
+                    {% if auto and not d.is_today %}AI подготовит черновики в {{ drafts_time }}{% else %}Черновиков пока нет{% endif %}
+                  </span>
+                  <form method="POST" class="m-0 ms-auto">
+                    <input type="hidden" name="action" value="prepare">
+                    <input type="hidden" name="day" value="{{ d.day }}">
+                    <button class="btn btn-sm" type="submit">✨ Подготовить сейчас</button>
+                  </form>
+                </div>
+                {% elif not d.posts %}
+                <div class="list-group-item px-0 text-secondary">Публикаций не было</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div></div>
+{% endblock %}

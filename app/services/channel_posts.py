@@ -54,7 +54,7 @@ def admin_keyboard(post: ChannelPost) -> InlineKeyboardMarkup:
     # Черновик контент-плана: можно выпустить в запланированное время, а не сразу
     if post.planned_at and post.planned_at > utcnow():
         rows.append([InlineKeyboardButton(
-            text=f"🕙 Запланировать на {format_local(post.planned_at, '%H:%M')}",
+            text=f"🕙 Запланировать на {format_local(post.planned_at, '%d.%m в %H:%M')}",
             callback_data=f"post:schedule:{post.id}",
         )])
     rows += [
