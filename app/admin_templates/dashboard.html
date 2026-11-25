@@ -1,8 +1,9 @@
 {% extends "sqladmin/layout.html" %}
+{% block content_header %}<h2 class="page-title">Сегодня</h2>{% endblock %}
 {% block content %}
 {% set d = dashboard %}
-<div class="col-12">
-  <h2 class="mb-3">Сегодня</h2>
+{# Контейнер SQLAdmin — row-deck: он делает колонку flex-строкой, поэтому внутри нужен блок на всю ширину #}
+<div class="col-12"><div class="w-100">
 
   {% for warning in d.warnings %}
   <div class="alert alert-warning">⚠️ {{ warning }}</div>
@@ -10,10 +11,10 @@
 
   {# Быстрые действия — то, что делается чаще всего #}
   <div class="row row-cards mb-3">
-    <div class="col-6 col-md-3"><a class="btn btn-primary w-100 py-3" href="/admin/add-from-wb">➕ Добавить товар по артикулу WB</a></div>
-    <div class="col-6 col-md-3"><a class="btn w-100 py-3" href="/admin/channel-post/create">✍️ Написать пост</a></div>
-    <div class="col-6 col-md-3"><a class="btn w-100 py-3" href="/admin/broadcast/create">📨 Сделать рассылку</a></div>
-    <div class="col-6 col-md-3"><a class="btn w-100 py-3" href="/admin/discount/create">🎁 Создать промокод</a></div>
+    <div class="col-6 col-md-3"><a class="btn btn-primary w-100 h-100 py-3 text-wrap" href="/admin/add-from-wb">➕ Добавить товар по артикулу WB</a></div>
+    <div class="col-6 col-md-3"><a class="btn w-100 h-100 py-3 text-wrap" href="/admin/channel-post/create">✍️ Написать пост</a></div>
+    <div class="col-6 col-md-3"><a class="btn w-100 h-100 py-3 text-wrap" href="/admin/broadcast/create">📨 Сделать рассылку</a></div>
+    <div class="col-6 col-md-3"><a class="btn w-100 h-100 py-3 text-wrap" href="/admin/discount/create">🎁 Создать промокод</a></div>
   </div>
 
   <div class="row row-cards mb-3">
@@ -99,5 +100,5 @@
       </div>
     </div>
   </div>
-</div>
+</div></div>
 {% endblock %}
