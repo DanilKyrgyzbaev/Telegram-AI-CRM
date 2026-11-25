@@ -49,6 +49,9 @@ class Product(Base):
     price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     # Артикул на Wildberries — по нему кнопка под рекомендацией ведёт на карточку товара
     wb_article: Mapped[int | None] = mapped_column(BigInteger)
+    # С карточки WB (app/services/wb_cards.py): состав, сезон и т. п., таблица размеров — по ним AI подбирает размер
+    specs: Mapped[str] = mapped_column(Text, default="", server_default="")
+    size_chart: Mapped[str] = mapped_column(Text, default="", server_default="")
     # Код в ссылке QR на упаковке: t.me/<bot>?start=q<код>
     qr_token: Mapped[str] = mapped_column(String(16), unique=True, default=new_qr_token)
     is_active: Mapped[bool] = mapped_column(default=True)

@@ -1,26 +1,31 @@
 """Веб-админка CRM на SQLAdmin: /admin"""
 
+import re
 import secrets
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
-from sqladmin import Admin, ModelView, action
+from sqladmin import Admin, BaseView, ModelView, action, expose
 from sqladmin.authentication import AuthenticationBackend
 from sqladmin.filters import AllUniqueStringValuesFilter, BooleanFilter, OperationColumnFilter
 from sqladmin.i18n import I18nConfig
-from sqlalchemy import update
+from sqlalchemy import select, update
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
+from app.ai.catalog import product_draft
+from app.ai.posts import RUBRICS
 from app.config import get_settings
 from app.db import SessionLocal, engine
 from app.models import Broadcast, Campaign, ChannelPost, Client, Discount, Message, Product, Purchase
 from app.services.broadcasts import format_local, local_tz, utcnow
-from app.ai.posts import RUBRICS
 from app.services.channel_posts import STATUS_LABELS, create_auto_post, start_generation
 from app.services.promo import promo_status
 from app.services.qr import product_link, qr_png
+from app.services.wb_cards import fetch_card, refresh_product
 
 
 class AdminAuth(AuthenticationBackend):
@@ -82,10 +87,16 @@ class ProductAdmin(ModelView, model=Product):
     name = "Товар"
     name_plural = "Товары"
     icon = "fa-solid fa-box"
-    column_list = [Product.id, Product.name, Product.category, Product.price, Product.wb_article, Product.is_active]
+    column_list = [
+        Product.id, Product.name, Product.category, Product.price, Product.wb_article, "sizes", Product.is_active,
+    ]
     column_labels = {
         Product.name: "Название", Product.category: "Категория", Product.description: "Описание",
         Product.price: "Цена", Product.wb_article: "Артикул WB", Product.is_active: "В продаже",
+        Product.specs: "Характеристики (с WB)", Product.size_chart: "Размеры (с WB)", "sizes": "Размеры",
+    }
+    column_formatters = {
+        "sizes": lambda m, a: ", ".join(line.split(":")[0] for line in m.size_chart.splitlines()) or "—",
     }
     column_searchable_list = [Product.name, Product.wb_article]
     column_filters = [
@@ -95,18 +106,39 @@ class ProductAdmin(ModelView, model=Product):
     column_sortable_list = [Product.id, Product.name, Product.category, Product.price]
     form_columns = [
         Product.name, Product.category, Product.price, Product.wb_article, Product.description, Product.is_active,
+        Product.specs, Product.size_chart,
     ]
     form_args = {
         "wb_article": {"description": "Артикул на Wildberries — под рекомендациями AI появится кнопка на этот товар."},
         "category": {"description": "Например: куртки, шапки, обувь. По категориям AI подбирает похожие товары."},
         "description": {"description": "Материал, цвет, с чем сочетается — AI использует это в рекомендациях."},
+        "specs": {"description": "Заполняется с карточки WB кнопкой «🔄 Обновить с WB». Можно поправить вручную."},
+        "size_chart": {"description": "Таблица размеров с WB — по ней AI называет покупателю точный размер."},
     }
-    form_widget_args = {"description": {"rows": 5}}
+    form_widget_args = {"description": {"rows": 5}, "specs": {"rows": 6}, "size_chart": {"rows": 6}}
 
     async def after_model_change(self, data: dict, model: Product, is_created: bool, request: Request) -> None:
+        # Указали артикул, а размеров ещё нет — сразу подтягиваем их с карточки WB
+        if model.wb_article and not model.size_chart:
+            async with SessionLocal() as session:
+                product = await session.get(Product, model.id)
+                if await refresh_product(product):
+                    await session.commit()
         # Новый товар — AI пишет пост о поступлении для канала
         if is_created and model.is_active:
             await create_auto_post(product_id=model.id)
+
+    @action(name="refresh_wb", label="🔄 Обновить с WB",
+            confirmation_message="Обновить характеристики и размеры выбранных товаров с карточек Wildberries?")
+    async def refresh_from_wb(self, request: Request) -> RedirectResponse:
+        ids = [int(pk) for pk in request.query_params.get("pks", "").split(",") if pk]
+        async with SessionLocal() as session:
+            for product_id in ids:
+                product = await session.get(Product, product_id)
+                if product is not None:
+                    await refresh_product(product)
+            await session.commit()
+        return RedirectResponse(request.url_for("admin:list", identity=self.identity), status_code=302)
 
     @action(name="qr", label="Скачать QR для упаковки", add_in_list=False)
     async def download_qr(self, request: Request) -> Response:
@@ -119,6 +151,54 @@ class ProductAdmin(ModelView, model=Product):
             qr_png(await product_link(product.qr_token)),
             media_type="image/png",
             headers={"Content-Disposition": f'attachment; filename="qr-product-{product_id}.png"'},
+        )
+
+
+class AddFromWbView(BaseView):
+    name = "Добавить по артикулу WB"
+    icon = "fa-solid fa-wand-magic-sparkles"
+
+    @expose("/add-from-wb", methods=["GET", "POST"], identity="add_from_wb")
+    async def page(self, request: Request) -> Response:
+        if request.method == "GET":
+            return await self.templates.TemplateResponse(request, "add_from_wb.html", {})
+        form = await request.form()
+        article_text, price_text = str(form.get("article", "")), str(form.get("price", ""))
+
+        def fail(error: str):
+            return self.templates.TemplateResponse(
+                request, "add_from_wb.html", {"error": error, "article": article_text, "price": price_text}
+            )
+
+        # Артикул — первое длинное число: так подходит и ссылка вида wildberries.ru/catalog/1591647301/detail.aspx
+        digits = re.search(r"\d{5,}", article_text)
+        try:
+            price = Decimal(price_text.replace(" ", "").replace(",", "."))
+        except InvalidOperation:
+            return await fail("Цена — число, например 2890")
+        if digits is None or price <= 0:
+            return await fail("Укажите артикул WB и цену больше нуля")
+        article = int(digits.group())
+
+        async with SessionLocal() as session:
+            existing = await session.scalar(select(Product).where(Product.wb_article == article))
+            if existing is not None:
+                return await fail(f"Этот артикул уже есть в каталоге: «{existing.name}» (#{existing.id})")
+            card = await fetch_card(article)
+            if card is None:
+                return await fail("Wildberries не отдал карточку — проверьте артикул")
+            categories = sorted(set(filter(None, await session.scalars(select(Product.category).distinct()))))
+            draft = await product_draft(card, categories)
+            product = Product(
+                name=draft.name, category=draft.category, description=draft.description, price=price,
+                wb_article=article, specs=card.specs, size_chart=card.size_chart,
+            )
+            session.add(product)
+            await session.commit()
+        # Как и при создании вручную — AI пишет пост о новинке для канала
+        await create_auto_post(product_id=product.id)
+        return RedirectResponse(
+            request.url_for("admin:edit", identity="product", pk=product.id), status_code=302
         )
 
 
@@ -386,11 +466,13 @@ def setup_admin(app: FastAPI) -> None:
         logo_width=150,
         logo_height=56,
         favicon_url="/favicon.png?v=2",
+        # Свои страницы админки (например, «Добавить по артикулу WB»)
+        templates_dir=str(Path(__file__).parent / "admin_templates"),
         authentication_backend=AdminAuth(secret_key=get_settings().secret_key),
         i18n_config=I18nConfig(default_locale="ru"),
     )
     for view in (
-        ClientAdmin, MessageAdmin, PurchaseAdmin, ProductAdmin,
+        ClientAdmin, MessageAdmin, PurchaseAdmin, ProductAdmin, AddFromWbView,
         DiscountAdmin, CampaignAdmin, BroadcastAdmin, ChannelPostAdmin,
     ):
         admin.add_view(view)

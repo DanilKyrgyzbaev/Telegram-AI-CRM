@@ -52,6 +52,14 @@ async def _probe_all(http: aiohttp.ClientSession, article: int) -> int | None:
     return None
 
 
+async def basket_for(http: aiohttp.ClientSession, article: int) -> int | None:
+    """Номер сервера basket, где лежат файлы товара (запоминается)."""
+    basket = _baskets.get(article) or await _find_basket(http, article)
+    if basket is not None:
+        _baskets[article] = basket
+    return basket
+
+
 async def product_photo(article: int) -> bytes | None:
     """JPEG главного фото товара или None, если фото найти не удалось."""
     try:
