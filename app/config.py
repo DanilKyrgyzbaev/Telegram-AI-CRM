@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Любая строка; та же вписывается в настройках webhook в кабинете Meta
     instagram_verify_token: str = ""
     instagram_api_version: str = "v23.0"
+    # graph.instagram.com — токен входа через Instagram (60 дней, продлевается сам);
+    # graph.facebook.com — бессрочный токен системного пользователя (единый вход, новые приложения Meta)
+    instagram_graph_host: str = "graph.instagram.com"
     database_url: str = "postgresql+asyncpg://crm:crm@localhost:5432/crm"
     ai_model: str = "claude-opus-5-5"
     admin_api_key: str = ""

@@ -1,4 +1,4 @@
-"""Instagram API (вход через Instagram): Direct, ответы на комментарии, публикация постов."""
+"""Instagram API: Direct, ответы на комментарии, публикация постов."""
 
 import asyncio
 import logging
@@ -21,8 +21,10 @@ MESSAGE_LIMIT = 1000
 CAPTION_LIMIT = 2200
 # В карточке-карусели не больше 10 товаров
 CARDS_LIMIT = 10
-# Долгоживущий токен действует 60 дней — продлеваем заранее
+# Долгоживущий токен входа через Instagram действует 60 дней — продлеваем заранее
 TOKEN_REFRESH_EVERY = timedelta(days=7)
+# Только токены этого хоста истекают и продлеваются; токен системного пользователя бессрочный
+INSTAGRAM_LOGIN_HOST = "graph.instagram.com"
 TOKEN_KEY = "instagram_access_token"
 
 
@@ -39,7 +41,7 @@ async def access_token() -> str:
 
 async def _request(method: str, path: str, *, params: dict | None = None, json: dict | None = None) -> dict[str, Any]:
     settings = get_settings()
-    url = f"https://graph.instagram.com/{settings.instagram_api_version}/{path}"
+    url = f"https://{settings.instagram_graph_host}/{settings.instagram_api_version}/{path}"
     headers = {"Authorization": f"Bearer {await access_token()}"}
     async with aiohttp.ClientSession(timeout=TIMEOUT) as http:
         async with http.request(method, url, params=params, json=json, headers=headers) as response:
@@ -132,16 +134,17 @@ async def publish_photo(image_url: str, caption: str) -> str:
 
 async def refresh_token_if_needed() -> None:
     """Продлевает долгоживущий токен (живёт 60 дней), сохраняя новый в базу."""
-    if not get_settings().instagram_enabled:
+    settings = get_settings()
+    if not settings.instagram_enabled or settings.instagram_graph_host != INSTAGRAM_LOGIN_HOST:
         return
     async with SessionLocal() as session:
         stored = await session.get(AppSetting, TOKEN_KEY)
         if stored and utcnow() - stored.updated_at < TOKEN_REFRESH_EVERY:
             return
-        token = stored.value if stored else get_settings().instagram_access_token
+        token = stored.value if stored else settings.instagram_access_token
         async with aiohttp.ClientSession(timeout=TIMEOUT) as http:
             async with http.get(
-                "https://graph.instagram.com/refresh_access_token",
+                f"https://{INSTAGRAM_LOGIN_HOST}/refresh_access_token",
                 params={"grant_type": "ig_refresh_token", "access_token": token},
             ) as response:
                 data = await response.json(content_type=None)
