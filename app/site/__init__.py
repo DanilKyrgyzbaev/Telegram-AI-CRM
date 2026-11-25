@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
-FAVICON = Path(__file__).parent / "static" / "favicon.svg"
+STATIC = Path(__file__).parent / "static"
+# Картинки бренда из корня сайта: логотип (тёмный и светлый — для тёмного меню админки), значок вкладки, иконка для iPhone
+BRAND_FILES = ("logo.png", "logo-light.png", "favicon.png", "apple-touch-icon.png")
 # Метка кампании для ссылки на бота: клиенты с сайта видны в CRM с источником «site»
 BOT_START_PARAM = "site"
 SIMILAR_LIMIT = 4
@@ -103,6 +105,12 @@ async def data_deletion(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "data_deletion.html", await _context(request))
 
 
-@router.get("/favicon.svg", include_in_schema=False)
-async def favicon() -> FileResponse:
-    return FileResponse(FAVICON, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})
+def _brand_file(name: str):
+    async def serve() -> FileResponse:
+        return FileResponse(STATIC / name, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+    return serve
+
+
+for _name in BRAND_FILES:
+    router.add_api_route(f"/{_name}", _brand_file(_name), methods=["GET"], include_in_schema=False)

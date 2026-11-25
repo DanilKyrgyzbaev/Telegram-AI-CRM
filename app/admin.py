@@ -376,7 +376,12 @@ def setup_admin(app: FastAPI) -> None:
     admin = Admin(
         app,
         engine,
-        title="Telegram AI CRM",
+        title=f"{get_settings().shop_name or 'Telegram AI'} CRM",
+        # Картинки бренда отдаёт сайт (app/site); меню админки тёмное — логотип светлый
+        logo_url="/logo-light.png",
+        logo_width=150,
+        logo_height=56,
+        favicon_url="/favicon.png",
         authentication_backend=AdminAuth(secret_key=get_settings().secret_key),
         i18n_config=I18nConfig(default_locale="ru"),
     )
