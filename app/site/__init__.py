@@ -1,10 +1,13 @@
 """Публичный сайт-каталог магазина: карточки товаров с кнопками на Wildberries."""
 
+import io
 import logging
 from pathlib import Path
 
+import segno
+
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,8 +22,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 STATIC = Path(__file__).parent / "static"
-# Картинки бренда из корня сайта: логотип (тёмный и светлый — для тёмного меню админки), значок вкладки, иконка для iPhone
-BRAND_FILES = ("logo.png", "logo-light.png", "favicon.png", "apple-touch-icon.png")
+# Картинки бренда из корня сайта: логотип (тёмный и светлый — для тёмного меню админки), значок вкладки,
+# иконка для iPhone, QR Instagram для подвала (вырезан из brand/instagram_qr_code.jpg)
+BRAND_FILES = ("logo.png", "logo-light.png", "favicon.png", "apple-touch-icon.png", "instagram-qr.png")
+QR_COLOR = "#1d1a17"
 # Метка кампании для ссылки на бота: клиенты с сайта видны в CRM с источником «site»
 BOT_START_PARAM = "site"
 SIMILAR_LIMIT = 4
@@ -103,6 +108,17 @@ async def privacy(request: Request) -> HTMLResponse:
 @router.get("/data-deletion", response_class=HTMLResponse)
 async def data_deletion(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "data_deletion.html", await _context(request))
+
+
+@router.get("/qr/telegram.svg", include_in_schema=False)
+async def telegram_qr() -> Response:
+    """QR на бота с меткой «site» — посетители с компьютера сканируют его телефоном."""
+    url = await _bot_url()
+    if url is None:
+        raise HTTPException(status_code=404)
+    buffer = io.BytesIO()
+    segno.make(url, error="m").save(buffer, kind="svg", scale=8, border=2, dark=QR_COLOR, light="#ffffff", xmldecl=False)
+    return Response(buffer.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=3600"})
 
 
 def _brand_file(name: str):
