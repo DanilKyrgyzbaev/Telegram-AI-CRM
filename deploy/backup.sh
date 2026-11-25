@@ -5,7 +5,10 @@
 set -e
 cd "$(dirname "$0")/.."
 mkdir -p backups
-. ./.env
+# .env не подключаем целиком: значения с пробелами (например, SHOP_LEGAL_NAME) ломают shell
+env_value() { grep "^$1=" .env | cut -d= -f2-; }
+POSTGRES_USER=$(env_value POSTGRES_USER)
+POSTGRES_DB=$(env_value POSTGRES_DB)
 FILE="backups/crm-$(date +%Y-%m-%d_%H-%M).sql.gz"
 docker compose exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$FILE"
 ls -1t backups/crm-*.sql.gz | tail -n +15 | xargs -r rm --
