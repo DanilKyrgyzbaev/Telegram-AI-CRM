@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ shop }}{% endblock %}</title>
+<meta name="description" content="{% block description %}{{ shop }} — одежда на Wildberries. Каталог моделей с ссылками на карточки WB.{% endblock %}">
+<meta property="og:site_name" content="{{ shop }}">
+<meta property="og:title" content="{{ self.title() }}">
+<meta property="og:description" content="{{ self.description() }}">
+{% block og %}{% endblock %}
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f6f2ec; --surface: #fffdf9; --ink: #1d1a17; --muted: #6f675e; --line: #e3dcd2;
+  --accent: #8a2bb0; --accent-ink: #fff; --chip: #ece5db;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #151311; --surface: #1e1b18; --ink: #f1ebe3; --muted: #a59b8f; --line: #312c27;
+          --accent: #b55ad8; --accent-ink: #fff; --chip: #2a2622; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 Manrope, system-ui, sans-serif; }
+a { color: inherit; }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
+header { border-bottom: 1px solid var(--line); }
+header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 68px; }
+.logo { display: flex; color: var(--ink); }
+.logo-mark { display: block; height: 46px; width: auto; }
+nav { display: flex; gap: 18px; font-size: 14px; }
+nav a { text-decoration: none; color: var(--muted); }
+nav a:hover { color: var(--ink); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px;
+       border-radius: 999px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1px solid var(--line); }
+.btn-buy { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn-buy:hover { filter: brightness(1.08); }
+.btn-ghost { background: var(--surface); }
+.btn-ghost:hover { border-color: var(--ink); }
+footer { margin-top: 72px; border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
+footer a { color: var(--muted); }
+.photo { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--chip); border-radius: 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 28px 20px; }
+.card { text-decoration: none; display: flex; flex-direction: column; gap: 8px; }
+.card:hover .photo { opacity: .92; }
+.card .cat { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.card .name { font-weight: 500; }
+.card .price { font-weight: 700; }
+@media (max-width: 560px) {
+  nav { display: none; }
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 20px 12px; }
+}
+{% block style %}{% endblock %}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="/" aria-label="{{ shop }}">{% include "logo.svg" %}</a>
+  <nav>
+    <a href="/">Каталог</a>
+    {% if channel_url %}<a href="{{ channel_url }}" target="_blank" rel="noopener">Telegram-канал</a>{% endif %}
+    {% if instagram_url %}<a href="{{ instagram_url }}" target="_blank" rel="noopener">Instagram</a>{% endif %}
+    {% if shop_url %}<a href="{{ shop_url }}" target="_blank" rel="noopener">Мы на Wildberries</a>{% endif %}
+  </nav>
+</div></header>
+<main class="wrap">{% block content %}{% endblock %}</main>
+<footer><div class="wrap">
+  <span>© {{ shop }}. Покупка и доставка — через Wildberries.</span>
+  <span>
+    {% if bot_url %}<a href="{{ bot_url }}" target="_blank" rel="noopener">Задать вопрос в Telegram</a> · {% endif %}
+    {# На телефоне меню в шапке скрыто — дублируем его ссылки здесь #}
+    {% if channel_url %}<a href="{{ channel_url }}" target="_blank" rel="noopener">Telegram-канал</a> · {% endif %}
+    {% if instagram_url %}<a href="{{ instagram_url }}" target="_blank" rel="noopener">Instagram</a> · {% endif %}
+    {% if shop_url %}<a href="{{ shop_url }}" target="_blank" rel="noopener">Мы на Wildberries</a> · {% endif %}
+    <a href="/privacy">Конфиденциальность</a>
+  </span>
+</div></footer>
+</body>
+</html>
