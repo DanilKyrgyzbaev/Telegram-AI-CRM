@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}{{ shop }}{% endblock %}</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* Цвета берём из темы Telegram (переменные задаёт telegram-web-app.js); вне Telegram — светлая тема */
+:root {
+  --bg: var(--tg-theme-bg-color, #ffffff); --bg2: var(--tg-theme-secondary-bg-color, #f2f2f5);
+  --text: var(--tg-theme-text-color, #1d1a17); --hint: var(--tg-theme-hint-color, #8a8580);
+  --link: var(--tg-theme-link-color, #8a2bb0); --button: var(--tg-theme-button-color, #8a2bb0);
+  --button-text: var(--tg-theme-button-text-color, #ffffff);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; }
+a { color: inherit; text-decoration: none; }
+.page { padding: 12px 14px 96px; max-width: 640px; margin: 0 auto; }
+.photo { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--bg2); border-radius: 14px; }
+.price { font-weight: 700; }
+.muted { color: var(--hint); }
+.btn { display: block; width: 100%; padding: 14px; border: 0; border-radius: 12px; font: 600 16px/1 inherit;
+       background: var(--button); color: var(--button-text); text-align: center; cursor: pointer; }
+.btn-soft { background: var(--bg2); color: var(--text); }
+{% block style %}{% endblock %}
+</style>
+</head>
+<body>
+<div class="page">{% block content %}{% endblock %}</div>
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+function haptic() { if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged(); }
+// Ссылки на Wildberries открываем во внешнем браузере / приложении WB, а не внутри Telegram
+function openExternal(url) { if (tg) tg.openLink(url); else window.open(url, "_blank"); }
+function openTelegram(url) { if (tg) tg.openTelegramLink(url); else window.open(url, "_blank"); }
+</script>
+{% block script %}{% endblock %}
+</body>
+</html>

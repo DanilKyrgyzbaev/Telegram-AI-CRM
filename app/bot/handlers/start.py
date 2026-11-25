@@ -11,7 +11,7 @@ from app.models import Discount, Product, Purchase
 from app.services.clients import get_or_create_client
 from app.services.limits import is_repeat_scan, qr_limit_exceeded
 from app.services.promo import current_promo, format_expires
-from app.services.qr import is_qr_param, parse_start_param
+from app.services.qr import is_app_param, is_qr_param, parse_ask_param, parse_start_param
 
 router = Router()
 
@@ -34,8 +34,17 @@ async def start(message: Message, command: CommandObject, session: AsyncSession)
         telegram_id=user.id,
         full_name=user.full_name,
         username=user.username,
-        source="qr" if is_qr_param(command.args) else command.args,
+        source="qr" if is_qr_param(command.args) else "app" if is_app_param(command.args) else command.args,
     )
+
+    # Из каталога (Mini App) нажали «Спросить AI» на товаре — следующий вопрос AI поймёт в контексте товара
+    if (asked_id := parse_ask_param(command.args)) and (asked := await session.get(Product, asked_id)):
+        await manager.note_product_interest(session, crm_client, asked)
+        await message.answer(
+            f"Что хотите узнать про «{asked.name}»? 🙂\n"
+            "Например: какой размер взять при моём росте, как сидит, с чем носить."
+        )
+        return
 
     product = None
     if qr_token:

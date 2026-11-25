@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.db import get_session
 from app.models import Product
-from app.services.qr import bot_username
+from app.services.qr import APP_START_PARAM, ASK_START_PREFIX, bot_username
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +97,41 @@ async def product_page(
     )
     return templates.TemplateResponse(
         request, "product.html", await _context(request, product=product, similar=similar)
+    )
+
+
+# Telegram Mini App: каталог внутри Telegram, открывается кнопкой «Каталог» в боте
+async def _ask_url(start: str) -> str | None:
+    try:
+        return f"https://t.me/{await bot_username()}?start={start}"
+    except Exception:
+        logger.exception("Не удалось узнать username бота")
+        return None
+
+
+@router.get("/app", response_class=HTMLResponse)
+async def app_catalog(request: Request, session: AsyncSession = Depends(get_session)) -> HTMLResponse:
+    products = list(await session.scalars(_active()))
+    categories = sorted({p.category for p in products if p.category})
+    return templates.TemplateResponse(
+        request, "app/catalog.html",
+        await _context(request, products=products, categories=categories, bot_ask_url=await _ask_url(APP_START_PARAM)),
+    )
+
+
+@router.get("/app/product/{product_id}", response_class=HTMLResponse)
+async def app_product(request: Request, product_id: int, session: AsyncSession = Depends(get_session)) -> HTMLResponse:
+    product = await session.get(Product, product_id)
+    if product is None or not product.is_active:
+        raise HTTPException(status_code=404)
+    similar = list(
+        await session.scalars(
+            _active().where(Product.category == product.category, Product.id != product.id).limit(SIMILAR_LIMIT)
+        )
+    )
+    return templates.TemplateResponse(
+        request, "app/product.html",
+        await _context(request, product=product, similar=similar, bot_ask_url=await _ask_url(f"{ASK_START_PREFIX}{product.id}")),
     )
 
 

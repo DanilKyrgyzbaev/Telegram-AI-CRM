@@ -12,6 +12,10 @@ _bot_username: str | None = None
 _QR_PARAM = re.compile(r"q([0-9a-f]{12})")
 # Старый формат ссылок (p<номер товара>) легко подобрать перебором — он больше не засчитывается
 _LEGACY_QR_PARAM = re.compile(r"p\d+")
+# Ссылки из Telegram Mini App (каталога): «app» — общий вопрос, «ask<ID товара>» — вопрос о товаре
+APP_START_PARAM = "app"
+ASK_START_PREFIX = "ask"
+_ASK_PARAM = re.compile(ASK_START_PREFIX + r"(\d+)")
 
 
 def start_param(qr_token: str) -> str:
@@ -23,6 +27,16 @@ def parse_start_param(args: str | None) -> str | None:
     """Код товара (Product.qr_token) из параметра /start или None, если это не QR товара."""
     match = _QR_PARAM.fullmatch(args or "")
     return match.group(1) if match else None
+
+
+def parse_ask_param(args: str | None) -> int | None:
+    """ID товара, о котором клиент хочет спросить из каталога, или None."""
+    match = _ASK_PARAM.fullmatch(args or "")
+    return int(match.group(1)) if match else None
+
+
+def is_app_param(args: str | None) -> bool:
+    return args == APP_START_PARAM or parse_ask_param(args) is not None
 
 
 def is_qr_param(args: str | None) -> bool:

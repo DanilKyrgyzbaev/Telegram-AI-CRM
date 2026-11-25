@@ -1,9 +1,20 @@
 from collections.abc import Sequence
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from app.config import get_settings
 from app.models import Product
+
+
+def catalog_url() -> str | None:
+    """Адрес каталога-Mini App на нашем сайте; без домена Telegram его не откроет."""
+    domain = get_settings().domain
+    return f"https://{domain}/app" if domain else None
+
+
+def catalog_rows() -> list[list[InlineKeyboardButton]]:
+    url = catalog_url()
+    return [[InlineKeyboardButton(text="🛍 Открыть каталог", web_app=WebAppInfo(url=url))]] if url else []
 
 
 def subscribe_rows() -> list[list[InlineKeyboardButton]]:
@@ -17,7 +28,7 @@ def subscribe_rows() -> list[list[InlineKeyboardButton]]:
 
 
 def subscribe_keyboard() -> InlineKeyboardMarkup | None:
-    rows = subscribe_rows()
+    rows = catalog_rows() + subscribe_rows()
     return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
 
 

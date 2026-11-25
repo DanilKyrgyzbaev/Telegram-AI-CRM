@@ -114,6 +114,15 @@ async def greet_purchase(
     return await _generate(session, crm_client, fallback)
 
 
+async def note_product_interest(session: AsyncSession, crm_client: Client, product: Product) -> None:
+    """Клиент нажал «Спросить AI» на товаре в каталоге: запоминаем, о чём будет следующий вопрос."""
+    session.add(Message(
+        client_id=crm_client.id, role="event",
+        text=f"[Клиент открыл в каталоге товар #{product.id} «{product.name}» и хочет задать о нём вопрос]",
+    ))
+    await session.commit()
+
+
 async def reply_to_comment(
     session: AsyncSession, crm_client: Client, comment: str, product: Product | None = None
 ) -> AIReply:
