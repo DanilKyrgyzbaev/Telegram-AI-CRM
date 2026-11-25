@@ -1,0 +1,29 @@
+{% extends "sqladmin/layout.html" %}
+{% block content %}
+<div class="col-12 col-lg-8">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">➕ Добавить товар по артикулу Wildberries</h3></div>
+    <div class="card-body">
+      <p class="text-secondary">
+        Вставьте артикул — название, категория, описание, фото, состав и таблица размеров подтянутся с карточки WB,
+        короткое описание напишет AI. Цену WB не отдаёт — укажите её сами.
+      </p>
+      {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label">Артикул WB</label>
+          <input class="form-control" name="article" inputmode="numeric" placeholder="например, 1591647301"
+                 value="{{ article or '' }}" required>
+          <small class="form-hint">Можно вставить и ссылку на товар с Wildberries — артикул найдём сами.</small>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Цена, ₽</label>
+          <input class="form-control" name="price" inputmode="decimal" placeholder="например, 2890" value="{{ price or '' }}" required>
+        </div>
+        <button class="btn btn-primary" type="submit">Добавить товар</button>
+        <small class="text-secondary ms-2">Займёт 10–20 секунд: WB + AI</small>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
