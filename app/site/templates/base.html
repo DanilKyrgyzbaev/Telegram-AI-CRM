@@ -9,7 +9,8 @@
 <meta property="og:title" content="{{ self.title() }}">
 <meta property="og:description" content="{{ self.description() }}">
 {% block og %}{% endblock %}
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
@@ -28,8 +29,10 @@ a { color: inherit; }
 .wrap { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 header { border-bottom: 1px solid var(--line); }
 header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 68px; }
-.logo { display: flex; color: var(--ink); }
-.logo-mark { display: block; height: 46px; width: auto; }
+.logo { display: flex; }
+/* Логотип — PNG-маска: цвет берётся из темы, поэтому он виден и на светлом, и на тёмном фоне */
+.logo-mark { display: block; height: 52px; aspect-ratio: 961 / 358; background: var(--ink);
+             -webkit-mask: url(/logo.png) center / contain no-repeat; mask: url(/logo.png) center / contain no-repeat; }
 nav { display: flex; gap: 18px; font-size: 14px; }
 nav a { text-decoration: none; color: var(--muted); }
 nav a:hover { color: var(--ink); }
@@ -58,7 +61,7 @@ footer a { color: var(--muted); }
 </head>
 <body>
 <header><div class="wrap">
-  <a class="logo" href="/" aria-label="{{ shop }}">{% include "logo.svg" %}</a>
+  <a class="logo" href="/" aria-label="{{ shop }}"><span class="logo-mark"></span></a>
   <nav>
     <a href="/">Каталог</a>
     {% if channel_url %}<a href="{{ channel_url }}" target="_blank" rel="noopener">Telegram-канал</a>{% endif %}
