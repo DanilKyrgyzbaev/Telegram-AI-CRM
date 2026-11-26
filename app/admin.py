@@ -2,7 +2,7 @@
 
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -23,6 +23,7 @@ from app.db import SessionLocal, engine
 from app.models import Broadcast, Campaign, ChannelPost, Client, Discount, Message, Product, Purchase
 from app.services.broadcasts import format_local, local_tz, utcnow
 from app.services.channel_posts import STATUS_LABELS, create_auto_post, start_generation
+from app.services.content_plan import create_day_drafts, week_plan
 from app.services.dashboard import build as build_dashboard
 from app.services.promo import promo_status
 from app.services.qr import product_link, qr_png
@@ -470,6 +471,53 @@ class ChannelPostAdmin(ModelView, model=ChannelPost):
         return response
 
 
+class ContentPlanView(BaseView):
+    name = "Контент-план"
+    icon = "fa-solid fa-calendar-week"
+
+    @expose("/content-plan", methods=["GET", "POST"], identity="content_plan")
+    async def page(self, request: Request) -> Response:
+        today = datetime.now(local_tz()).date()
+        try:
+            day = date.fromisoformat(request.query_params.get("week", ""))
+        except ValueError:
+            day = today
+        monday = day - timedelta(days=day.weekday())
+        back = RedirectResponse(f"{request.url.path}?week={monday}", status_code=303)
+
+        if request.method == "POST":
+            form = await request.form()
+            async with SessionLocal() as session:
+                if form.get("action") == "prepare":
+                    # Черновики на выбранный день: AI пишет их в фоне, они придут и в Telegram-бот
+                    target = date.fromisoformat(str(form.get("day")))
+                    plan = {d.day: d for d in await week_plan(session, target - timedelta(days=target.weekday()))}
+                    if plan[target].can_prepare:
+                        for post_id in await create_day_drafts(session, target):
+                            start_generation(post_id)
+                elif form.get("action") == "schedule":
+                    # Одобрить черновик: выйдет во время по контент-плану
+                    post = await session.get(ChannelPost, int(str(form.get("post_id"))))
+                    if post and post.status in ("draft", "failed") and post.text and post.planned_at \
+                            and post.planned_at > utcnow():
+                        post.status, post.scheduled_at = "scheduled", post.planned_at
+                        await session.commit()
+            return back
+
+        async with SessionLocal() as session:
+            days = await week_plan(session, monday)
+        settings = get_settings()
+        return await self.templates.TemplateResponse(request, "content_plan.html", {
+            "days": days, "monday": monday, "sunday": monday + timedelta(days=6),
+            "prev_week": monday - timedelta(days=7), "next_week": monday + timedelta(days=7),
+            "this_week": today - timedelta(days=today.weekday()),
+            "about": post_about, "status_labels": STATUS_LABELS, "now": utcnow(),
+            "time": lambda value: format_local(value, "%H:%M"),
+            "auto": settings.content_plan_enabled, "drafts_time": settings.content_drafts_time,
+            "post_time": settings.content_post_time, "story_time": settings.content_story_time,
+        })
+
+
 class CrmAdmin(Admin):
     @login_required
     async def index(self, request: Request) -> Response:
@@ -499,6 +547,6 @@ def setup_admin(app: FastAPI) -> None:
     )
     for view in (
         ClientAdmin, MessageAdmin, PurchaseAdmin, ProductAdmin, AddFromWbView,
-        DiscountAdmin, CampaignAdmin, BroadcastAdmin, ChannelPostAdmin,
+        DiscountAdmin, CampaignAdmin, BroadcastAdmin, ChannelPostAdmin, ContentPlanView,
     ):
         admin.add_view(view)
